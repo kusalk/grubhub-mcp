@@ -9,3 +9,4 @@ build/
 decompiled/
 extracted/
 .env
+.idea/

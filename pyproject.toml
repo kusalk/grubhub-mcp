@@ -12,12 +12,6 @@ dependencies = [
     "pydantic>=2.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "python-semantic-release>=9.0.0",
-    "build>=1.0.0",
-]
-
 [project.scripts]
 grubhub = "grubhub_mcp.server:main"
 
@@ -30,15 +24,3 @@ package-dir = { "" = "src" }
 
 [tool.setuptools.packages]
 find = { where = ["src"] }
-
-[tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
-assets = [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]
-branch = "master"
-commit_parser = "angular"
-major_on_zero = false
-build_command = "python -m build"
-
-[tool.semantic_release.publish]
-dist_glob_patterns = ["dist/*"]
-upload_to_vcs_release = true

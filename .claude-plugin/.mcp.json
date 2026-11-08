@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "grubhub": {
-      "command": "uvx",
-      "args": ["--from", "grubhub-mcp", "grubhub"]
-    }
-  }
-}

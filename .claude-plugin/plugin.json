@@ -1,8 +1,0 @@
-{
-  "name": "grubhub-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for Grubhub — search restaurants, browse menus, manage cart, place orders (36 tools)",
-  "author": "aserper",
-  "license": "MIT",
-  "repository": "https://github.com/aserper/grubhub-mcp"
-}

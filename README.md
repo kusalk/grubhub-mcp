@@ -25,49 +25,26 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 
 ## Installation
 
-### Claude Code Plugin (Recommended)
-
-```bash
-claude plugin marketplace add aserper/grubhub-mcp
-claude plugin install grubhub-mcp@grubhub-marketplace
-```
-
-### uvx (No Installation Required)
-
-Add to your Claude Code MCP settings (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "grubhub": {
-      "command": "uvx",
-      "args": ["--from", "grubhub-mcp", "grubhub"]
-    }
-  }
-}
-```
-
-### Manual / From Source
+Install from a clone of this repository. The `grubhub-mcp` package on PyPI and
+the upstream Claude Code plugin are published from the original project and
+don't include this fork's changes.
 
 Requires Python 3.11+.
 
 ```bash
-git clone https://github.com/aserper/grubhub-mcp.git
+git clone https://github.com/kusalk/grubhub-mcp.git
 cd grubhub-mcp
 uv venv && source .venv/bin/activate
 uv pip install -e .
 ```
 
-Then add to `~/.claude/settings.json`:
+The install is editable, so the server runs whatever is checked out; restart it
+after switching branches or pulling.
 
-```json
-{
-  "mcpServers": {
-    "grubhub": {
-      "command": "/path/to/grubhub-mcp/.venv/bin/grubhub"
-    }
-  }
-}
+Then register it with Claude Code:
+
+```bash
+claude mcp add -s user grubhub -- /path/to/grubhub-mcp/.venv/bin/grubhub
 ```
 
 ## Usage with Other MCP Clients
@@ -75,13 +52,9 @@ Then add to `~/.claude/settings.json`:
 Run the server over stdio:
 
 ```bash
-# With uvx (no install needed)
-uvx --from grubhub-mcp grubhub
+/path/to/grubhub-mcp/.venv/bin/grubhub
 
-# Or from a local install
-grubhub
-
-# Or as a Python module
+# Or as a Python module, with the virtual environment active
 python -m grubhub_mcp
 ```
 
@@ -159,8 +132,7 @@ Run the regression suite with:
 uv run python -m unittest discover -s tests -v
 ```
 
-CI runs tests on pushes and pull requests, and the release job runs them before
-publishing. The package currently requires MCP 1.x (`mcp<2`).
+CI runs tests on pushes and pull requests. The package currently requires MCP 1.x (`mcp<2`).
 
 ## Disclaimer
 
