@@ -96,7 +96,7 @@ class FakeMCP:
     def __init__(self) -> None:
         self.tools: dict[str, Any] = {}
 
-    def tool(self):
+    def tool(self, **_settings):
         def decorator(func):
             self.tools[func.__name__] = func
             return func

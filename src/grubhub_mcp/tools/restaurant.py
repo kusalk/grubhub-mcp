@@ -8,11 +8,12 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
+from . import READ_ONLY
 from .. import auth as auth_module
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_restaurant(
         restaurant_id: str,
         latitude: float | None = None,
@@ -44,7 +45,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_menu(
         restaurant_id: str,
         latitude: float | None = None,
@@ -75,7 +76,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_menu_item(
         restaurant_id: str,
         item_id: str,

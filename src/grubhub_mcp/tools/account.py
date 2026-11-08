@@ -8,11 +8,12 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
+from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
 from .. import auth as auth_module
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_profile() -> str:
         """Get the current user's profile information. Requires authentication."""
         client = get_client()
@@ -30,7 +31,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=DESTRUCTIVE)
     async def update_profile(
         first_name: str | None = None,
         last_name: str | None = None,
@@ -61,7 +62,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data if data else {"status": "updated"}, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_addresses() -> str:
         """Get saved delivery addresses. Requires authentication."""
         client = get_client()
@@ -73,7 +74,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=ADDITIVE)
     async def add_address(
         street_address: str,
         city: str,
@@ -117,7 +118,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_favorites() -> str:
         """Get favorite/saved restaurants. Requires authentication."""
         client = get_client()
@@ -129,7 +130,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=ADDITIVE)
     async def add_favorite(restaurant_id: str) -> str:
         """Add a restaurant to favorites. Requires authentication.
 
@@ -146,7 +147,7 @@ def register(mcp: FastMCP) -> None:
         )
         return json.dumps(data if data else {"status": "added"}, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=DESTRUCTIVE)
     async def remove_favorite(restaurant_id: str) -> str:
         """Remove a restaurant from favorites. Requires authentication.
 

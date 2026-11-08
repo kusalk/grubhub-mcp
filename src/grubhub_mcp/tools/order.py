@@ -9,6 +9,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
+from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
 
 
 async def _fetch_order_history_raw(
@@ -111,7 +112,7 @@ def _build_cart_payload_from_order(order: dict[str, Any]) -> dict[str, Any]:
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=DESTRUCTIVE, title="Place order (charges your card)")
     async def place_order(
         cart_id: str,
         payment_method_id: str | None = None,
@@ -138,7 +139,7 @@ def register(mcp: FastMCP) -> None:
         data = await client.post(f"/carts/{path_id(cart_id)}/submit", data=payload)
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_order(order_id: str) -> str:
         """Get details for a specific order.
 
@@ -161,7 +162,7 @@ def register(mcp: FastMCP) -> None:
             data = match
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def get_order_history(page_size: int = 20, page_num: int = 1) -> str:
         """Get past order history (paginated). Requires authentication.
 
@@ -196,7 +197,7 @@ def register(mcp: FastMCP) -> None:
             indent=2,
         )
 
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def track_order(order_id: str) -> str:
         """Get real-time tracking info for an active order.
 
@@ -210,7 +211,7 @@ def register(mcp: FastMCP) -> None:
         data = await client.get(f"/orders/{path_id(order_id)}/tracking")
         return json.dumps(data, indent=2)
 
-    @mcp.tool()
+    @mcp.tool(annotations=ADDITIVE)
     async def reorder(order_id: str) -> str:
         """Create a new cart from a previous order for easy reordering.
 

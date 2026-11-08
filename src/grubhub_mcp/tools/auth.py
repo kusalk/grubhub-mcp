@@ -9,25 +9,26 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client
+from . import ADDITIVE, DESTRUCTIVE
 from .. import auth as auth_module
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=DESTRUCTIVE)
     async def logout() -> str:
         """Log out of the current Grubhub session."""
         client = get_client()
         await auth_module.logout(client)
         return json.dumps({"status": "logged_out"})
 
-    @mcp.tool()
+    @mcp.tool(annotations=ADDITIVE)
     async def send_login_otp(email: str) -> str:
         """Send a one-time passcode to the given email for login."""
         client = get_client()
         data = await auth_module.send_otp(client, email)
         return json.dumps({"status": "otp_sent", "email": email})
 
-    @mcp.tool()
+    @mcp.tool(annotations=ADDITIVE)
     async def verify_login_otp(email: str, code: str) -> str:
         """Verify a one-time passcode and complete login."""
         client = get_client()

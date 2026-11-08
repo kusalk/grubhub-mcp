@@ -8,11 +8,12 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client
+from . import READ_ONLY
 from .. import auth as auth_module
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool()
+    @mcp.tool(annotations=READ_ONLY)
     async def search_restaurants(
         latitude: float,
         longitude: float,

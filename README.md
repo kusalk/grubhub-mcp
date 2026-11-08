@@ -134,7 +134,7 @@ Run the regression suite with:
 uv run python -m unittest discover -s tests -v
 ```
 
-CI runs tests on pushes and pull requests. The package currently requires MCP 1.x (`mcp<2`).
+CI runs tests on pushes and pull requests. The package requires MCP 1.28 or later 1.x (`mcp>=1.28,<2`).
 
 ## Disclaimer
 
