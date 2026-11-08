@@ -14,20 +14,6 @@ from .. import auth as auth_module
 
 def register(mcp: FastMCP) -> None:
     @mcp.tool()
-    async def login(email: str, password: str) -> str:
-        """Log in to Grubhub with email and password. Returns session info on success."""
-        client = get_client()
-        data = await auth_module.login(client, email, password)
-        return json.dumps(
-            {
-                "status": "authenticated",
-                "diner_udid": client.session.diner_udid,
-                "email": email,
-            },
-            indent=2,
-        )
-
-    @mcp.tool()
     async def logout() -> str:
         """Log out of the current Grubhub session."""
         client = get_client()
@@ -69,23 +55,6 @@ def register(mcp: FastMCP) -> None:
         return json.dumps(
             {
                 "status": "authenticated",
-                "diner_udid": client.session.diner_udid,
-            },
-            indent=2,
-        )
-
-    @mcp.tool()
-    async def create_account(
-        email: str, password: str, first_name: str, last_name: str
-    ) -> str:
-        """Create a new Grubhub account."""
-        client = get_client()
-        data = await auth_module.create_account(
-            client, email, password, first_name, last_name
-        )
-        return json.dumps(
-            {
-                "status": "account_created",
                 "diner_udid": client.session.diner_udid,
             },
             indent=2,

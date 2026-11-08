@@ -8,19 +8,19 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 - **Restaurant & Menus** — View restaurant details, full menus, item options and pricing
 - **Cart Management** — Create carts, add/remove items, apply promo codes, set tips
 - **Order Flow** — Place orders, track deliveries in real-time, reorder past meals
-- **Account Management** — Manage profile, saved addresses, favorites, and passwords
+- **Account Management** — Manage profile, saved addresses, and favorites
 - **Payments** — View saved payment methods, check gift card balances
 
-### All 36 Tools
+### All 33 Tools
 
 | Category | Tools |
 |----------|-------|
-| **Auth** | `login`, `logout`, `get_session_info`, `send_login_otp`, `verify_login_otp`, `create_account`, `send_password_reset` |
+| **Auth** | `logout`, `get_session_info`, `send_login_otp`, `verify_login_otp`, `send_password_reset` |
 | **Search** | `search_restaurants`, `autocomplete_search` |
 | **Restaurant** | `get_restaurant`, `get_menu`, `get_menu_item` |
 | **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `apply_promo_code`, `set_tip` |
 | **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder`, `post_delivery_tip` |
-| **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite`, `change_password` |
+| **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
 | **Payments** | `get_payment_methods`, `get_gift_card_balance`, `apply_gift_card` |
 
 ## Installation
@@ -65,10 +65,12 @@ python -m grubhub_mcp
 **Login required** for ordering, account management, and order history:
 
 ```
-Use the login tool with my email and password
+Log me in to Grubhub with a one-time code sent to my email
 ```
 
-Supports email/password login and OTP (one-time passcode) authentication.
+Login uses a one-time passcode (`send_login_otp`, then `verify_login_otp`), so your
+password never passes through the model. Account creation and password changes
+happen in the Grubhub app or website.
 
 Sessions are stored in `~/.grubhub-mcp/session.json` (override the directory with
 `GRUBHUB_SESSION_DIR`). Access tokens are refreshed on use, including before
@@ -101,7 +103,7 @@ The API endpoints were reverse-engineered from the Grubhub Android app (v2026.11
 
 Key technical details:
 - **Base API**: `https://api-gtm.grubhub.com`
-- **Auth**: Bearer token via email/password or anonymous sessions
+- **Auth**: Bearer token via one-time passcode or anonymous sessions
 - **Transport**: REST/JSON for most endpoints, Protobuf for some BFF services
 - **Headers**: Mimics the Android app's request headers including `x-gh-browser-id`
 
@@ -115,12 +117,12 @@ src/grubhub_mcp/
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
 └── tools/
-    ├── auth.py        # Auth tools (login, logout, OTP, account creation)
+    ├── auth.py        # Auth tools (OTP login, logout, password reset)
     ├── search.py      # Restaurant search and autocomplete
     ├── restaurant.py  # Restaurant details, menus, menu items
     ├── cart.py        # Cart CRUD, promo codes, tips
     ├── order.py       # Place orders, track, reorder, order history
-    ├── account.py     # Profile, addresses, favorites, password
+    ├── account.py     # Profile, addresses, favorites
     └── payments.py    # Payment methods, gift cards
 ```
 

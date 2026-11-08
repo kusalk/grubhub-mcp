@@ -161,26 +161,3 @@ def register(mcp: FastMCP) -> None:
             f"/diners/{client.session.diner_udid}/favorites/{restaurant_id}"
         )
         return json.dumps(data if data else {"status": "removed"}, indent=2)
-
-    @mcp.tool()
-    async def change_password(
-        current_password: str, new_password: str
-    ) -> str:
-        """Change account password. Requires authentication.
-
-        Args:
-            current_password: Current password
-            new_password: New password
-        """
-        client = get_client()
-        if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in"})
-
-        data = await client.put(
-            f"/credentials/{client.session.diner_udid}/change_password",
-            data={
-                "current_password": current_password,
-                "new_password": new_password,
-            },
-        )
-        return json.dumps(data if data else {"status": "password_changed"}, indent=2)
