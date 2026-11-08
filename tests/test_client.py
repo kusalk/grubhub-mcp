@@ -131,6 +131,29 @@ class ClientRefreshTests(unittest.IsolatedAsyncioTestCase):
     def transport(self, handler):
         self.client._http = httpx.AsyncClient(base_url=module.BASE_URL, transport=httpx.MockTransport(handler))
 
+    async def test_errors_carry_grubhub_details(self):
+        self.transport(lambda request: httpx.Response(
+            422, json=[{"property": "restaurant_id", "message_key": "required", "message": None}]))
+        with self.assertRaises(httpx.HTTPStatusError) as caught:
+            await self.client.post("/carts/abc/lines", data={})
+        self.assertIsInstance(caught.exception, module.GrubhubAPIError)
+        self.assertEqual(caught.exception.response.status_code, 422)
+        self.assertEqual(
+            str(caught.exception),
+            'Grubhub returned 422 for POST /carts/abc/lines: '
+            '[{"property":"restaurant_id","message_key":"required","message":null}]',
+        )
+
+    async def test_long_and_empty_error_bodies(self):
+        responses = iter([httpx.Response(500, text="x" * 2000), httpx.Response(404)])
+        self.transport(lambda request: next(responses))
+        with self.assertRaises(module.GrubhubAPIError) as long_error:
+            await self.client.get("/a", params={"q": "1"})
+        self.assertTrue(str(long_error.exception).endswith(": " + "x" * 1000 + "…"))
+        with self.assertRaises(module.GrubhubAPIError) as empty_error:
+            await self.client.get("/b")
+        self.assertEqual(str(empty_error.exception), "Grubhub returned 404 for GET /b")
+
     async def test_authenticated_401_retries_all_verbs_with_rotated_token(self):
         for method in ("get", "post", "put", "delete"):
             with self.subTest(method=method):

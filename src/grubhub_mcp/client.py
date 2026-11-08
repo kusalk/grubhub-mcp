@@ -30,6 +30,28 @@ _SESSION_DIR = Path(os.environ.get("GRUBHUB_SESSION_DIR", Path.home() / ".grubhu
 _SESSION_FILE = _SESSION_DIR / "session.json"
 
 _PATH_ID = re.compile(r"[A-Za-z0-9_-]+")
+_MAX_ERROR_DETAIL = 1000
+
+
+class GrubhubAPIError(httpx.HTTPStatusError):
+    """An HTTP error whose message carries Grubhub's explanation from the response body.
+
+    Grubhub reports what was wrong in the body, e.g.
+    [{"property": "restaurant_id", "message_key": "required"}], so the model can
+    correct its request. Callers can still catch httpx.HTTPStatusError.
+    """
+
+    def __init__(self, response: httpx.Response) -> None:
+        detail = response.text.strip()
+        try:
+            detail = json.dumps(json.loads(detail), separators=(",", ":"))
+        except ValueError:
+            pass
+        if len(detail) > _MAX_ERROR_DETAIL:
+            detail = detail[:_MAX_ERROR_DETAIL] + "…"
+        request = response.request
+        message = f"Grubhub returned {response.status_code} for {request.method} {request.url.path}"
+        super().__init__(f"{message}: {detail}" if detail else message, request=request, response=response)
 
 
 def path_id(value: str) -> str:
@@ -293,7 +315,8 @@ class GrubhubClient:
                 resp = await self._http.request(
                     method, path, headers=self._headers(auth_required), json=data, params=params,
                 )
-        resp.raise_for_status()
+        if resp.is_error:
+            raise GrubhubAPIError(resp)
         return resp.json() if resp.content else {}
 
     async def get(self, path: str, params: Any = None, auth_required: bool = True) -> dict[str, Any]:
