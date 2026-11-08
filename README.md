@@ -11,14 +11,14 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 - **Account Management** — Manage profile, saved addresses, and favorites
 - **Payments** — View saved payment methods
 
-### All 26 Tools
+### All 27 Tools
 
 | Category | Tools |
 |----------|-------|
 | **Auth** | `logout`, `send_login_otp`, `verify_login_otp` |
 | **Search** | `search_restaurants` |
 | **Restaurant** | `get_restaurant`, `get_menu_item` |
-| **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `apply_promo_code`, `set_tip` |
+| **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `delete_cart`, `apply_promo_code`, `set_tip` |
 | **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder` |
 | **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
 | **Payments** | `get_payment_methods` |
@@ -133,13 +133,14 @@ src/grubhub_mcp/
 ├── server.py          # MCP server setup and tool registration
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
+├── carts.py           # Cart building: delivery, items, offers and payments
 ├── response.py        # Compact, size-limited tool output
 ├── summaries.py       # Plain-language restaurant summaries
 └── tools/
     ├── auth.py        # Auth tools (OTP login, logout)
     ├── search.py      # Restaurant search
     ├── restaurant.py  # Restaurant details, menus, menu items, offers
-    ├── cart.py        # Cart CRUD, promo codes, tips
+    ├── cart.py        # Cart tools, promo codes, tips
     ├── order.py       # Place orders, track, reorder, order history
     ├── account.py     # Profile, addresses, favorites
     └── payments.py    # Payment methods

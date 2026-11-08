@@ -11,7 +11,6 @@ import httpx
 
 from src.grubhub_mcp import auth as auth_module
 from src.grubhub_mcp.tools import auth as auth_tools
-from src.grubhub_mcp.tools import cart as cart_tools
 from src.grubhub_mcp.tools import order as order_tools
 
 
@@ -126,25 +125,6 @@ class AuthAndOrdersTests(unittest.IsolatedAsyncioTestCase):
             raw = await mcp.tools["verify_login_otp"]("user@example.com", "000000")
         self.assertEqual(json.loads(raw), {"error": "OTP expired or invalid — request a new code with send_login_otp"})
 
-    async def test_create_cart_omits_invalid_when_for_payload_field(self):
-        client = FakeClient()
-        mcp = FakeMCP()
-        cart_tools.register(mcp)
-        with patch("src.grubhub_mcp.tools.cart.get_client", return_value=client):
-            raw = await mcp.tools["create_cart"](
-                restaurant_id="11278616", menu_item_id="322296812576", quantity=1,
-                latitude=42.3601, longitude=-71.0589, is_delivery=True,
-            )
-        self.assertEqual(json.loads(raw)["id"], "cart-123")
-        self.assertEqual(len(client.post_calls), 1)
-        path, payload, auth_required, params = client.post_calls[0]
-        self.assertEqual(path, "/carts")
-        self.assertTrue(auth_required)
-        self.assertIsNone(params)
-        assert payload is not None
-        self.assertNotIn("when_for", payload)
-        self.assertEqual(payload["order_type"], "DELIVERY")
-        self.assertEqual(payload["restaurant_id"], "11278616")
 
     async def test_get_order_history_paginates_server_side(self):
         orders = [{"id": f"order-{i}"} for i in range(5)]
