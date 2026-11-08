@@ -11,13 +11,13 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 - **Account Management** — Manage profile, saved addresses, and favorites
 - **Payments** — View saved payment methods
 
-### All 27 Tools
+### All 26 Tools
 
 | Category | Tools |
 |----------|-------|
 | **Auth** | `logout`, `send_login_otp`, `verify_login_otp` |
 | **Search** | `search_restaurants` |
-| **Restaurant** | `get_restaurant`, `get_menu`, `get_menu_item` |
+| **Restaurant** | `get_restaurant`, `get_menu_item` |
 | **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `apply_promo_code`, `set_tip` |
 | **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder` |
 | **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
@@ -85,6 +85,19 @@ may change.
 There is no background keep-alive: a revoked or expired refresh token still
 requires a new login. Do not share your session file; it contains credentials.
 
+## Tool Output
+
+Tools return compact JSON shaped for language models:
+
+- Images, search-ranking internals, experiment IDs and fee bookkeeping are
+  removed wherever they appear, as are empty values and delivery/pickup prices
+  identical to the plain price. Prices are shown as dollar strings (`"$18.95"`).
+- `get_restaurant` returns the menu without option groups; `get_menu_item` has an
+  item's sizes and add-ons. `menu_query` keeps only matching menu items.
+- Output is limited to 80,000 characters. A larger menu drops item descriptions,
+  and anything still too large returns an error explaining how to narrow the
+  request.
+
 ## Order History Pagination
 
 `get_order_history` uses server-side pagination so older orders are reachable.
@@ -116,6 +129,7 @@ src/grubhub_mcp/
 ├── server.py          # MCP server setup and tool registration
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
+├── response.py        # Compact, size-limited tool output
 └── tools/
     ├── auth.py        # Auth tools (OTP login, logout)
     ├── search.py      # Restaurant search

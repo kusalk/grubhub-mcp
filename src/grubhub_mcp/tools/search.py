@@ -10,15 +10,43 @@ from mcp.server.fastmcp import FastMCP
 from ..client import get_client
 from . import READ_ONLY
 from .. import auth as auth_module
+from ..response import FEE_NOISE, respond
+
+# Ranking, ads and display bookkeeping in each search result.
+SEARCH_EXCLUDE = FEE_NOISE | {
+    "badge_list",
+    "entity_tags",
+    "features_v2",
+    "highlighting_info",
+    "non_supplemental_open_closed_container",
+    "percentage_ad_fee",
+    "quick_add_available",
+    "quick_add_configuration",
+    "quick_add_state",
+    "rank",
+    "rank_in_model",
+    "rank_in_restaurant",
+    "restaurant_aggregation_info",
+    "restaurant_groups",
+    "restaurant_hash",
+    "routing_number",
+    "sales_force_group",
+    "score",
+    "supplemental_open_closed_container",
+    "tie_breaking_score",
+    "uid",
+    "vendor_location_id",
+    "winning_ads_rank",
+}
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def search_restaurants(
         latitude: float,
         longitude: float,
         query: str = "",
-        page_size: int = 20,
+        page_size: int = 10,
         page_num: int = 1,
         sort_type: str = "",
         location_mode: str = "DELIVERY",
@@ -29,7 +57,7 @@ def register(mcp: FastMCP) -> None:
             latitude: Latitude of the delivery address
             longitude: Longitude of the delivery address
             query: Optional search query (cuisine, restaurant name, dish)
-            page_size: Number of results per page (default 20)
+            page_size: Number of results per page (default 10)
             page_num: Page number for pagination (1-based, default 1)
             sort_type: Optional sort — leave empty for default relevance
             location_mode: DELIVERY or PICKUP (default DELIVERY)
@@ -56,4 +84,7 @@ def register(mcp: FastMCP) -> None:
             params["sorts"] = json.dumps({"sortType": sort_type})
 
         data = await client.get("/restaurants/search/search_listing", params=params)
-        return json.dumps(data, indent=2)
+        return respond(
+            data, exclude=SEARCH_EXCLUDE,
+            too_large_hint="Request fewer results with a smaller page_size.",
+        )

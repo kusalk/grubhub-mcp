@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 import httpx
@@ -10,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
 from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
+from ..response import respond
 
 
 async def _fetch_order_history_raw(
@@ -46,7 +46,7 @@ async def _fetch_order_history_raw(
 
 def _require_authenticated(client: Any, action: str) -> str | None:
     if not client.session.is_authenticated or not client.session.diner_udid:
-        return json.dumps({"error": f"Must be logged in to {action}"})
+        return respond({"error": f"Must be logged in to {action}"})
     return None
 
 
@@ -112,7 +112,7 @@ def _build_cart_payload_from_order(order: dict[str, Any]) -> dict[str, Any]:
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool(annotations=DESTRUCTIVE, title="Place order (charges your card)")
+    @mcp.tool(structured_output=False, annotations=DESTRUCTIVE, title="Place order (charges your card)")
     async def place_order(
         cart_id: str,
         payment_method_id: str | None = None,
@@ -137,9 +137,9 @@ def register(mcp: FastMCP) -> None:
             payload["tip_amount"] = int(tip_amount * 100)
 
         data = await client.post(f"/carts/{path_id(cart_id)}/submit", data=payload)
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_order(order_id: str) -> str:
         """Get details for a specific order.
 
@@ -160,9 +160,9 @@ def register(mcp: FastMCP) -> None:
             if match is None:
                 raise
             data = match
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_order_history(page_size: int = 20, page_num: int = 1) -> str:
         """Get past order history (paginated). Requires authentication.
 
@@ -183,7 +183,7 @@ def register(mcp: FastMCP) -> None:
             client, page_size=page_size, page_num=page_num
         )
         pager = data.get("pager") or {}
-        return json.dumps(
+        return respond(
             {
                 "orders": data["orders"],
                 "pagination": {
@@ -194,10 +194,10 @@ def register(mcp: FastMCP) -> None:
                     "current_page": pager.get("current_page"),
                 },
             },
-            indent=2,
+            too_large_hint="Use a smaller page_size.",
         )
 
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def track_order(order_id: str) -> str:
         """Get real-time tracking info for an active order.
 
@@ -209,9 +209,9 @@ def register(mcp: FastMCP) -> None:
         if auth_error:
             return auth_error
         data = await client.get(f"/orders/{path_id(order_id)}/tracking")
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=ADDITIVE)
+    @mcp.tool(structured_output=False, annotations=ADDITIVE)
     async def reorder(order_id: str) -> str:
         """Create a new cart from a previous order for easy reordering.
 
@@ -234,4 +234,4 @@ def register(mcp: FastMCP) -> None:
                 raise
             payload = _build_cart_payload_from_order(match)
             data = await client.post("/carts", data=payload)
-        return json.dumps(data, indent=2)
+        return respond(data)

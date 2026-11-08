@@ -2,23 +2,23 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
 from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
+from ..response import respond
 from .. import auth as auth_module
 
 
 def register(mcp: FastMCP) -> None:
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_profile() -> str:
         """Get the current user's profile information. Requires authentication."""
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in to view profile"})
+            return respond({"error": "Must be logged in to view profile"})
 
         data = await client.get(
             f"/diners/{client.session.diner_udid}/details",
@@ -29,9 +29,9 @@ def register(mcp: FastMCP) -> None:
                 "with_phone_numbers": True,
             },
         )
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=DESTRUCTIVE)
+    @mcp.tool(structured_output=False, annotations=DESTRUCTIVE)
     async def update_profile(
         first_name: str | None = None,
         last_name: str | None = None,
@@ -46,7 +46,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in to update profile"})
+            return respond({"error": "Must be logged in to update profile"})
 
         payload: dict[str, Any] = {}
         if first_name is not None:
@@ -60,21 +60,21 @@ def register(mcp: FastMCP) -> None:
             f"/credentials/{client.session.diner_udid}/profile",
             data=payload,
         )
-        return json.dumps(data if data else {"status": "updated"}, indent=2)
+        return respond(data if data else {"status": "updated"})
 
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_addresses() -> str:
         """Get saved delivery addresses. Requires authentication."""
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in to view addresses"})
+            return respond({"error": "Must be logged in to view addresses"})
 
         data = await client.get(
             f"/diners/{client.session.diner_udid}/addresses"
         )
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=ADDITIVE)
+    @mcp.tool(structured_output=False, annotations=ADDITIVE)
     async def add_address(
         street_address: str,
         city: str,
@@ -97,7 +97,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in to add addresses"})
+            return respond({"error": "Must be logged in to add addresses"})
 
         payload: dict[str, Any] = {
             "street_address": street_address,
@@ -116,21 +116,21 @@ def register(mcp: FastMCP) -> None:
             f"/diners/{client.session.diner_udid}/addresses",
             data=payload,
         )
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=READ_ONLY)
+    @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_favorites() -> str:
         """Get favorite/saved restaurants. Requires authentication."""
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in to view favorites"})
+            return respond({"error": "Must be logged in to view favorites"})
 
         data = await client.get(
             f"/diners/{client.session.diner_udid}/favorites/restaurants"
         )
-        return json.dumps(data, indent=2)
+        return respond(data)
 
-    @mcp.tool(annotations=ADDITIVE)
+    @mcp.tool(structured_output=False, annotations=ADDITIVE)
     async def add_favorite(restaurant_id: str) -> str:
         """Add a restaurant to favorites. Requires authentication.
 
@@ -139,15 +139,15 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in"})
+            return respond({"error": "Must be logged in"})
 
         data = await client.post(
             f"/diners/{client.session.diner_udid}/favorites/restaurants",
             data={"restaurant_id": int(restaurant_id)},
         )
-        return json.dumps(data if data else {"status": "added"}, indent=2)
+        return respond(data if data else {"status": "added"})
 
-    @mcp.tool(annotations=DESTRUCTIVE)
+    @mcp.tool(structured_output=False, annotations=DESTRUCTIVE)
     async def remove_favorite(restaurant_id: str) -> str:
         """Remove a restaurant from favorites. Requires authentication.
 
@@ -156,9 +156,9 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         if not client.session.is_authenticated or not client.session.diner_udid:
-            return json.dumps({"error": "Must be logged in"})
+            return respond({"error": "Must be logged in"})
 
         data = await client.delete(
             f"/diners/{client.session.diner_udid}/favorites/{path_id(restaurant_id)}"
         )
-        return json.dumps(data if data else {"status": "removed"}, indent=2)
+        return respond(data if data else {"status": "removed"})

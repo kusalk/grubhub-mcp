@@ -187,8 +187,8 @@ class AuthAndOrdersTests(unittest.IsolatedAsyncioTestCase):
             data = json.loads(await mcp.tools["get_order_history"]())
         self.assertEqual(data["orders"], response["results"] + response["partner_results"])
         self.assertEqual(data["pagination"]["returned"], 2)
-        self.assertIsNone(data["pagination"]["total_pages"])
-        self.assertIsNone(data["pagination"]["current_page"])
+        self.assertNotIn("total_pages", data["pagination"])
+        self.assertNotIn("current_page", data["pagination"])
 
     async def test_history_handles_null_results_and_pager(self):
         client = FakeClient(history_pages={1: {"results": None, "partner_results": None, "pager": None}})
