@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -43,6 +44,14 @@ CART_EXCLUDE = frozenset({
     "silo_id",
     "update_metadata",
 })
+
+
+MAX_TIP_DOLLARS = 100
+
+
+def to_cents(dollars: float) -> int:
+    """Exact cents: binary floats make int(0.29 * 100) 28."""
+    return int((Decimal(str(dollars)) * 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 class CartOption(BaseModel):
@@ -191,30 +200,34 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool(structured_output=False, annotations=ADDITIVE)
     async def apply_promo_code(cart_id: str, promo_code: str) -> str:
-        """Apply a promotion code to the cart.
+        """Apply a promo code to the cart, and return the cart.
+
+        Grubhub rejects unknown codes with CODE_NOT_FOUND.
 
         Args:
             cart_id: The cart ID
-            promo_code: The promotion code to apply
+            promo_code: The promo code
         """
         client = get_client()
-        data = await client.post(
-            f"/carts/{path_id(cart_id)}/promotions",
-            data={"promo_code": promo_code},
+        await client.post(
+            f"/carts/{path_id(cart_id)}/payments",
+            data={"type": "PROMO_CODE", "payment_id": promo_code.strip(), "metadata": {}},
         )
-        return respond(data)
+        return cart_view(await carts.get_bill(client, cart_id))
 
     @mcp.tool(structured_output=False, annotations=DESTRUCTIVE)
     async def set_tip(cart_id: str, tip_amount: float) -> str:
-        """Set the tip amount on the cart.
+        """Set the courier tip, and return the cart. Ask the user how much to tip.
 
         Args:
             cart_id: The cart ID
-            tip_amount: Tip amount in dollars
+            tip_amount: Tip in dollars, from 0 to 100
         """
+        if not 0 <= tip_amount <= MAX_TIP_DOLLARS:
+            return respond({"error": f"tip_amount must be between $0 and ${MAX_TIP_DOLLARS}"})
         client = get_client()
-        data = await client.put(
+        await client.post(
             f"/carts/{path_id(cart_id)}/tip",
-            data={"tip_amount": int(tip_amount * 100)},  # cents
+            data={"amount": to_cents(tip_amount), "type": "INCLUDE_IN_BILL"},
         )
-        return respond(data)
+        return cart_view(await carts.get_bill(client, cart_id))

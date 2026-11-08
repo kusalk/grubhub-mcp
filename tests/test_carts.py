@@ -269,6 +269,42 @@ class GetCartTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([path for _, path, _ in client.calls], [f"/carts/{CART}/bill"])
 
 
+class TipTests(unittest.IsolatedAsyncioTestCase):
+    async def set_tip(self, client: FakeCartClient, amount: float) -> dict:
+        tools: dict = {}
+        cart_tools.register(SimpleNamespace(tool=lambda **_: lambda fn: tools.setdefault(fn.__name__, fn)))
+        with patch("src.grubhub_mcp.tools.cart.get_client", return_value=client):
+            return json.loads(await tools["set_tip"](cart_id=CART, tip_amount=amount))
+
+    async def test_tip_is_posted_in_exact_cents(self):
+        for dollars, cents in ((0.29, 29), (3, 300), (2.675, 268), (100, 10000), (0, 0)):
+            with self.subTest(dollars=dollars):
+                client = FakeCartClient()
+                out = await self.set_tip(client, dollars)
+                self.assertEqual(client.sent("POST", "/tip"), [{"amount": cents, "type": "INCLUDE_IN_BILL"}])
+                self.assertIn("summary", out)
+
+    async def test_out_of_range_tips_are_refused(self):
+        for dollars in (-1, 100.01):
+            with self.subTest(dollars=dollars):
+                client = FakeCartClient()
+                out = await self.set_tip(client, dollars)
+                self.assertIn("between $0 and $100", out["error"])
+                self.assertEqual(client.calls, [])
+
+
+class PromoCodeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_code_is_added_as_a_promo_code_payment(self):
+        client = FakeCartClient()
+        tools: dict = {}
+        cart_tools.register(SimpleNamespace(tool=lambda **_: lambda fn: tools.setdefault(fn.__name__, fn)))
+        with patch("src.grubhub_mcp.tools.cart.get_client", return_value=client):
+            out = json.loads(await tools["apply_promo_code"](cart_id=CART, promo_code=" SAVE5 "))
+        self.assertEqual(client.sent("POST", f"/carts/{CART}/payments"),
+                         [{"type": "PROMO_CODE", "payment_id": "SAVE5", "metadata": {}}])
+        self.assertIn("summary", out)
+
+
 class DeleteCartTests(unittest.IsolatedAsyncioTestCase):
     async def test_deletes_the_cart(self):
         client = FakeCartClient()
