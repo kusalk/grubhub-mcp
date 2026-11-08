@@ -5,7 +5,7 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 ## Features
 
 - **Search & Discovery** — Find restaurants by location, cuisine, or keyword
-- **Restaurant & Menus** — View restaurant details, full menus, item options and pricing
+- **Restaurant & Menus** — View restaurant details, fees, full menus, item options, pricing and offers
 - **Cart Management** — Create carts, add/remove items, apply promo codes, set tips
 - **Order Flow** — Place orders, track deliveries in real-time, reorder past meals
 - **Account Management** — Manage profile, saved addresses, and favorites
@@ -92,6 +92,10 @@ Tools return compact JSON shaped for language models:
 - Images, search-ranking internals, experiment IDs and fee bookkeeping are
   removed wherever they appear, as are empty values and delivery/pickup prices
   identical to the plain price. Prices are shown as dollar strings (`"$18.95"`).
+- Each restaurant in `search_restaurants` and `get_restaurant` starts with a
+  `summary`: Grubhub+ eligibility, hours, delivery estimate, every fee and
+  promotions, with the raw fields behind it still included. `get_restaurant`'s
+  summary also lists the restaurant's offers.
 - `get_restaurant` returns the menu without option groups; `get_menu_item` has an
   item's sizes and add-ons. `menu_query` keeps only matching menu items.
 - Output is limited to 80,000 characters. A larger menu drops item descriptions,
@@ -130,10 +134,11 @@ src/grubhub_mcp/
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
 ├── response.py        # Compact, size-limited tool output
+├── summaries.py       # Plain-language restaurant summaries
 └── tools/
     ├── auth.py        # Auth tools (OTP login, logout)
     ├── search.py      # Restaurant search
-    ├── restaurant.py  # Restaurant details, menus, menu items
+    ├── restaurant.py  # Restaurant details, menus, menu items, offers
     ├── cart.py        # Cart CRUD, promo codes, tips
     ├── order.py       # Place orders, track, reorder, order history
     ├── account.py     # Profile, addresses, favorites

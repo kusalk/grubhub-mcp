@@ -11,6 +11,7 @@ from ..client import get_client
 from . import READ_ONLY
 from .. import auth as auth_module
 from ..response import FEE_NOISE, respond
+from ..summaries import search_result_summary
 
 # Ranking, ads and display bookkeeping in each search result.
 SEARCH_EXCLUDE = FEE_NOISE | {
@@ -40,6 +41,16 @@ SEARCH_EXCLUDE = FEE_NOISE | {
 }
 
 
+def add_summaries(data: Any) -> Any:
+    """Put a plain-language summary first in each search result."""
+    if isinstance(data, dict) and isinstance(data.get("results"), list):
+        data["results"] = [
+            {"summary": search_result_summary(result), **result} if isinstance(result, dict) else result
+            for result in data["results"]
+        ]
+    return data
+
+
 def register(mcp: FastMCP) -> None:
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def search_restaurants(
@@ -52,6 +63,12 @@ def register(mcp: FastMCP) -> None:
         location_mode: str = "DELIVERY",
     ) -> str:
         """Search for restaurants near a location.
+
+        Each result starts with a summary: Grubhub+ eligibility, opening hours,
+        delivery estimate, fees and promotions. Menu prices exclude tax and these
+        fees, which differ between restaurants, so compare restaurants on total
+        cost. get_restaurant lists a restaurant's offers, and get_cart has
+        the exact total for a cart.
 
         Args:
             latitude: Latitude of the delivery address
@@ -85,6 +102,6 @@ def register(mcp: FastMCP) -> None:
 
         data = await client.get("/restaurants/search/search_listing", params=params)
         return respond(
-            data, exclude=SEARCH_EXCLUDE,
+            add_summaries(data), exclude=SEARCH_EXCLUDE,
             too_large_hint="Request fewer results with a smaller page_size.",
         )

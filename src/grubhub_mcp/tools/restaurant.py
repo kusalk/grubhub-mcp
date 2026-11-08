@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
+import httpx
 from mcp.server.fastmcp import FastMCP
 
 from ..client import get_client, path_id
 from . import READ_ONLY
 from .. import auth as auth_module
 from ..response import FEE_NOISE, respond
+from ..summaries import restaurant_summary
 
 # Bookkeeping repeated on every menu item and option.
 MENU_EXCLUDE = frozenset({
@@ -75,6 +78,27 @@ def filter_menu(data: Any, query: str) -> Any:
     return data
 
 
+def with_summary(data: Any, offers: Any = None) -> Any:
+    return {"summary": restaurant_summary(data, offers), **data} if isinstance(data, dict) else data
+
+
+async def fetch_offers(client: Any, restaurant_id: str, latitude: float, longitude: float) -> Any:
+    """The restaurant's offers, or None if they can't be fetched."""
+    try:
+        return await client.get(
+            f"/offers/availability/{path_id(restaurant_id)}",
+            params={
+                "orderType": "STANDARD",
+                "locationMode": "DELIVERY",
+                "deliveryLatitude": latitude,
+                "deliveryLongitude": longitude,
+                "featureFlags": "includeLockedOffers",
+            },
+        )
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
 def register(mcp: FastMCP) -> None:
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_restaurant(
@@ -84,15 +108,19 @@ def register(mcp: FastMCP) -> None:
         order_type: str = "standard",
         menu_query: str = "",
     ) -> str:
-        """Get a restaurant's details, fees and menu.
+        """Get a restaurant's details, fees, offers and menu.
 
-        Menu prices exclude tax and fees. An item priced $0.00 takes its price from
-        a required option such as size, and minimum_price_variation is its starting
-        price. Use get_menu_item for an item's sizes and options.
+        The response starts with a summary: Grubhub+ eligibility, hours, delivery
+        estimate, fees, promotions and, given latitude and longitude, the
+        restaurant's offers. Offers discount the subtotal; first-order offers apply
+        only if the account hasn't ordered from the restaurant before. Menu prices
+        exclude tax and fees. An item priced $0.00 takes its price from a required
+        option such as size, and minimum_price_variation is its starting price.
+        Use get_menu_item for an item's sizes and options.
 
         Args:
             restaurant_id: The Grubhub restaurant ID
-            latitude: Latitude of the delivery address, for fees and estimates
+            latitude: Latitude of the delivery address, for fees, estimates and offers
             longitude: Longitude of the delivery address
             order_type: Order type - standard, catering (default standard)
             menu_query: Keep only menu items whose name, description or category
@@ -107,12 +135,18 @@ def register(mcp: FastMCP) -> None:
             "hideUnavailableMenuItems": True,
             "hideChoiceCategories": True,
         }
+        path = f"/restaurants/v4/{path_id(restaurant_id)}"
+        offers = None
         if latitude is not None and longitude is not None:
             params["location"] = f"POINT({longitude} {latitude})"
-
-        data = await client.get(f"/restaurants/v4/{path_id(restaurant_id)}", params=params)
+            data, offers = await asyncio.gather(
+                client.get(path, params=params),
+                fetch_offers(client, restaurant_id, latitude, longitude),
+            )
+        else:
+            data = await client.get(path, params=params)
         return respond(
-            filter_menu(data, menu_query), exclude=RESTAURANT_EXCLUDE,
+            with_summary(filter_menu(data, menu_query), offers), exclude=RESTAURANT_EXCLUDE,
             trim=frozenset({"description"}),
             trim_note="Item descriptions omitted to fit; pass menu_query to see them for matching items.",
             too_large_hint="Pass menu_query to return only matching menu items.",
