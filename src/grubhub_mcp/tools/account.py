@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client
+from ..client import get_client, path_id
 from .. import auth as auth_module
 
 
@@ -158,6 +158,6 @@ def register(mcp: FastMCP) -> None:
             return json.dumps({"error": "Must be logged in"})
 
         data = await client.delete(
-            f"/diners/{client.session.diner_udid}/favorites/{restaurant_id}"
+            f"/diners/{client.session.diner_udid}/favorites/{path_id(restaurant_id)}"
         )
         return json.dumps(data if data else {"status": "removed"}, indent=2)

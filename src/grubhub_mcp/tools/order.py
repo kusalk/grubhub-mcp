@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client
+from ..client import get_client, path_id
 
 
 async def _fetch_order_history_raw(
@@ -135,7 +135,7 @@ def register(mcp: FastMCP) -> None:
         if tip_amount is not None:
             payload["tip_amount"] = int(tip_amount * 100)
 
-        data = await client.post(f"/carts/{cart_id}/submit", data=payload)
+        data = await client.post(f"/carts/{path_id(cart_id)}/submit", data=payload)
         return json.dumps(data, indent=2)
 
     @mcp.tool()
@@ -150,7 +150,7 @@ def register(mcp: FastMCP) -> None:
         if auth_error:
             return auth_error
         try:
-            data = await client.get(f"/orders/{order_id}")
+            data = await client.get(f"/orders/{path_id(order_id)}")
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != 404:
                 raise
@@ -207,7 +207,7 @@ def register(mcp: FastMCP) -> None:
         auth_error = _require_authenticated(client, "track an order")
         if auth_error:
             return auth_error
-        data = await client.get(f"/orders/{order_id}/tracking")
+        data = await client.get(f"/orders/{path_id(order_id)}/tracking")
         return json.dumps(data, indent=2)
 
     @mcp.tool()
@@ -223,7 +223,7 @@ def register(mcp: FastMCP) -> None:
             return auth_error
 
         try:
-            data = await client.post(f"/orders/{order_id}/reorder")
+            data = await client.post(f"/orders/{path_id(order_id)}/reorder")
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != 404:
                 raise
@@ -248,7 +248,7 @@ def register(mcp: FastMCP) -> None:
         if auth_error:
             return auth_error
         data = await client.post(
-            f"/orders/{order_id}/tip",
+            f"/orders/{path_id(order_id)}/tip",
             data={"tip_amount": int(tip_amount * 100)},
         )
         return json.dumps(data, indent=2)

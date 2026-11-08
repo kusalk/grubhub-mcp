@@ -9,6 +9,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import tempfile
 from typing import Any
 from uuid import uuid4
@@ -27,6 +28,19 @@ API_KEY = "ghandroid_Ujtwar5s9e3RYiSNV31X41y2hsK6Kh1Uv7JDrkpS"
 
 _SESSION_DIR = Path(os.environ.get("GRUBHUB_SESSION_DIR", Path.home() / ".grubhub-mcp"))
 _SESSION_FILE = _SESSION_DIR / "session.json"
+
+_PATH_ID = re.compile(r"[A-Za-z0-9_-]+")
+
+
+def path_id(value: str) -> str:
+    """Return an ID that is safe to embed as a single URL path segment.
+
+    IDs come from the model, so anything that could add path segments, a query
+    or a fragment ("/", "..", "?", "#", "%") is rejected rather than escaped.
+    """
+    if not _PATH_ID.fullmatch(value):
+        raise ValueError(f"Invalid Grubhub ID {value!r}: use only letters, digits, '-' and '_'")
+    return value
 
 
 class GrubhubSession:

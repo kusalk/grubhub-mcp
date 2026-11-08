@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client
+from ..client import get_client, path_id
 
 
 def register(mcp: FastMCP) -> None:
@@ -49,7 +49,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         data = await client.post(
-            f"/carts/{cart_id}/payments/gift_card",
+            f"/carts/{path_id(cart_id)}/payments/gift_card",
             data={"card_number": card_number, "pin": pin},
         )
         return json.dumps(data, indent=2)

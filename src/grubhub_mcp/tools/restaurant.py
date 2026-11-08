@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client
+from ..client import get_client, path_id
 from .. import auth as auth_module
 
 
@@ -40,7 +40,7 @@ def register(mcp: FastMCP) -> None:
             params["location"] = f"POINT({longitude} {latitude})"
 
         data = await client.get(
-            f"/restaurants/v4/{restaurant_id}", params=params
+            f"/restaurants/v4/{path_id(restaurant_id)}", params=params
         )
         return json.dumps(data, indent=2)
 
@@ -71,7 +71,7 @@ def register(mcp: FastMCP) -> None:
             params["location"] = f"POINT({longitude} {latitude})"
 
         data = await client.get(
-            f"/restaurants/v4/{restaurant_id}", params=params
+            f"/restaurants/v4/{path_id(restaurant_id)}", params=params
         )
         return json.dumps(data, indent=2)
 
@@ -104,7 +104,7 @@ def register(mcp: FastMCP) -> None:
             params["location"] = f"POINT({longitude} {latitude})"
 
         data = await client.get(
-            f"/restaurants/v4/{restaurant_id}/menu_items/{item_id}",
+            f"/restaurants/v4/{path_id(restaurant_id)}/menu_items/{path_id(item_id)}",
             params=params,
         )
         return json.dumps(data, indent=2)

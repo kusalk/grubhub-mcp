@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client
+from ..client import get_client, path_id
 
 
 def register(mcp: FastMCP) -> None:
@@ -68,7 +68,7 @@ def register(mcp: FastMCP) -> None:
             cart_id: The cart ID
         """
         client = get_client()
-        data = await client.get(f"/carts/{cart_id}")
+        data = await client.get(f"/carts/{path_id(cart_id)}")
         return json.dumps(data, indent=2)
 
     @mcp.tool()
@@ -100,7 +100,7 @@ def register(mcp: FastMCP) -> None:
             line_item["options"] = options
 
         data = await client.post(
-            f"/carts/{cart_id}/line_items", data=line_item
+            f"/carts/{path_id(cart_id)}/line_items", data=line_item
         )
         return json.dumps(data, indent=2)
 
@@ -117,7 +117,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         data = await client.put(
-            f"/carts/{cart_id}/line_items/{line_item_id}",
+            f"/carts/{path_id(cart_id)}/line_items/{path_id(line_item_id)}",
             data={"quantity": quantity},
         )
         return json.dumps(data, indent=2)
@@ -132,7 +132,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         data = await client.delete(
-            f"/carts/{cart_id}/line_items/{line_item_id}"
+            f"/carts/{path_id(cart_id)}/line_items/{path_id(line_item_id)}"
         )
         return json.dumps(data, indent=2)
 
@@ -146,7 +146,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         data = await client.post(
-            f"/carts/{cart_id}/promotions",
+            f"/carts/{path_id(cart_id)}/promotions",
             data={"promo_code": promo_code},
         )
         return json.dumps(data, indent=2)
@@ -161,7 +161,7 @@ def register(mcp: FastMCP) -> None:
         """
         client = get_client()
         data = await client.put(
-            f"/carts/{cart_id}/tip",
+            f"/carts/{path_id(cart_id)}/tip",
             data={"tip_amount": int(tip_amount * 100)},  # cents
         )
         return json.dumps(data, indent=2)
