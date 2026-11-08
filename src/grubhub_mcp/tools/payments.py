@@ -33,7 +33,7 @@ def register(mcp: FastMCP) -> None:
         data = await client.get(
             f"/payments/{client.session.diner_udid}/payments"
         )
-        return respond(data)
+        return respond(data, exclude=frozenset({"nonce"}))  # A card payment token; the model never needs it.
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_grubhub_credits() -> str:

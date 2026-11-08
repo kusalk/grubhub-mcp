@@ -83,6 +83,28 @@ def restaurant_summary(data: dict[str, Any], offers: Any = None) -> dict[str, An
         return {}
 
 
+def order_confirmation(order: dict[str, Any]) -> dict[str, Any]:
+    """Summarize a /carts/{id}/checkout response: the cart as placed."""
+    try:
+        estimate = ((order.get("ordering_info") or {}).get("real_time_eta") or {}).get("estimate_range") or {}
+        cards = ((order.get("payments") or {}).get("CREDIT_CARD")) or []
+        charged = [p.get("amount") for p in cards if isinstance(p, dict) and type(p.get("amount")) is int]
+        return {
+            "placed": order.get("state") == "CHECKOUT_COMPLETE",
+            "state": order.get("state"),
+            "status": order.get("status"),
+            "order_number": order.get("order_number"),
+            "arriving_in": _minutes(estimate.get("start_time_minutes"), estimate.get("end_time_minutes")),
+            "arriving_between": [estimate.get("start_time"), estimate.get("end_time")]
+            if estimate.get("start_time") and estimate.get("end_time") else None,
+            "total": _money((order.get("charges") or {}).get("diner_grand_total")),
+            "charged_to_card": dollars(sum(charged)) if charged else None,
+            "next": "Track it with get_order and this order_number.",
+        }
+    except Exception:  # A summary must never break the tool; the raw data is still returned.
+        return {}
+
+
 _PAYMENT_LABELS = {
     "GIFT_CARD": "Gift card",
     "GRUBCASH": "Grubhub credit",

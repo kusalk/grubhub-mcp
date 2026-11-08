@@ -135,7 +135,7 @@ src/grubhub_mcp/
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
 ├── carts.py           # Cart building: delivery, items, offers and payments
 ├── response.py        # Compact, size-limited tool output
-├── summaries.py       # Plain-language restaurant and cart summaries
+├── summaries.py       # Plain-language restaurant, cart and order summaries
 └── tools/
     ├── auth.py        # Auth tools (OTP login, logout)
     ├── search.py      # Restaurant search

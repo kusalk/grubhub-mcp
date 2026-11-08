@@ -224,3 +224,35 @@ async def _sync_offer(client: GrubhubClient, cart_id: str, bill: dict[str, Any])
         except httpx.HTTPStatusError:
             continue  # Grubhub decides final eligibility, e.g. first-order offers.
     return bool(applied)
+
+
+async def default_card(client: GrubhubClient) -> str | None:
+    """The most recently used saved card that hasn't expired."""
+    methods = await client.get(f"/payments/{client.session.diner_udid}/payments")
+    cards = methods.get("credit_cards") if isinstance(methods, dict) else None
+    usable = [c for c in cards or [] if isinstance(c, dict) and c.get("id") and not c.get("expired")]
+    usable.sort(key=lambda card: card.get("last_used_date") or 0, reverse=True)
+    return usable[0]["id"] if usable else None
+
+
+async def ensure_card(client: GrubhubClient, cart_id: str, bill: dict[str, Any], card_id: str) -> None:
+    """Make card_id the cart's only card payment, as the website's setPayment does."""
+    cards = [p for p in (bill.get("payments") or {}).get("CREDIT_CARD") or [] if isinstance(p, dict)]
+    if any(card.get("payment_id") == card_id for card in cards):
+        return
+    for card in cards:
+        payment_id = card.get("encoded_id") or card.get("id")
+        if isinstance(payment_id, str):
+            await client.delete(f"/carts/{path_id(cart_id)}/payments/{path_id(payment_id)}")
+    await client.post(f"/carts/{path_id(cart_id)}/payments", data={
+        "type": "CREDIT_CARD", "payment_id": card_id, "metadata": {},
+    })
+
+
+def card_charge(bill: Any) -> int | None:
+    """Cents Grubhub will charge the card payments, or None if it hasn't computed them."""
+    payments = (bill.get("payments") or {}) if isinstance(bill, dict) else {}
+    amounts = [p.get("amount") for p in payments.get("CREDIT_CARD") or [] if isinstance(p, dict)]
+    if not amounts or any(type(amount) is not int for amount in amounts):
+        return None
+    return sum(amounts)

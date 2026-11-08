@@ -7,9 +7,12 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
+from .. import carts
 from ..client import get_client, path_id
 from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
-from ..response import respond
+from ..response import dollars, respond
+from ..summaries import cart_summary, order_confirmation
+from .cart import CART_EXCLUDE, to_cents
 
 
 async def _fetch_order_history_raw(
@@ -115,29 +118,46 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool(structured_output=False, annotations=DESTRUCTIVE, title="Place order (charges your card)")
     async def place_order(
         cart_id: str,
+        expected_charge: float,
         payment_method_id: str | None = None,
-        tip_amount: float | None = None,
     ) -> str:
-        """Place an order from a cart. Requires authentication.
+        """Place the order and charge the card. Only call once the user has confirmed.
+
+        First show the user get_cart's summary and ask about a tip. Pass the
+        card_charge they confirmed as expected_charge. The order is placed only if
+        Grubhub reports the cart ready and the card charge equals expected_charge
+        to the cent; otherwise nothing is charged and the reason is returned.
 
         Args:
-            cart_id: The cart ID to submit as an order
-            payment_method_id: ID of the payment method to use (uses default if not specified)
-            tip_amount: Optional tip amount in dollars
+            cart_id: The cart ID
+            expected_charge: The card_charge the user confirmed, in dollars
+            payment_method_id: A saved card id from get_payment_methods
+                (default: the most recently used card)
         """
         client = get_client()
         auth_error = _require_authenticated(client, "place an order")
         if auth_error:
             return auth_error
-
-        payload: dict[str, Any] = {}
-        if payment_method_id:
-            payload["payment_method_id"] = payment_method_id
-        if tip_amount is not None:
-            payload["tip_amount"] = int(tip_amount * 100)
-
-        data = await client.post(f"/carts/{path_id(cart_id)}/submit", data=payload)
-        return respond(data)
+        card_id = payment_method_id or await carts.default_card(client)
+        if not card_id:
+            return respond({"error": "No usable saved card; add one in the Grubhub app."})
+        await carts.ensure_card(client, cart_id, await carts.get_bill(client, cart_id), card_id)
+        bill = await carts.get_bill(client, cart_id)
+        summary = cart_summary(bill)
+        charge = carts.card_charge(bill)
+        if bill.get("state") != "READY_FOR_CHECKOUT" or bill.get("validation_errors") or not bill.get("checkout_token"):
+            return respond({"error": "Not placed: Grubhub says the cart isn't ready to order.", "summary": summary})
+        if charge != to_cents(expected_charge):
+            shown = dollars(charge) if charge is not None else "unknown"
+            return respond({
+                "error": f"Not placed: the card charge is {shown}, not the confirmed {dollars(to_cents(expected_charge))}. "
+                         "Confirm the current amount with the user.",
+                "summary": summary,
+            })
+        order = await client.post(f"/carts/{path_id(cart_id)}/checkout", data={"checkout_token": bill["checkout_token"]})
+        if isinstance(order, dict):
+            order = {"summary": order_confirmation(order), **order}
+        return respond(order, exclude=CART_EXCLUDE)
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_order(order_id: str) -> str:
