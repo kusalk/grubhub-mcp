@@ -56,34 +56,3 @@ def register(mcp: FastMCP) -> None:
 
         data = await client.get("/restaurants/search/search_listing", params=params)
         return json.dumps(data, indent=2)
-
-    @mcp.tool()
-    async def autocomplete_search(
-        query: str,
-        latitude: float,
-        longitude: float,
-        location_mode: str = "DELIVERY",
-    ) -> str:
-        """Get autocomplete suggestions for a search query.
-
-        Args:
-            query: The partial search text
-            latitude: Latitude for location context
-            longitude: Longitude for location context
-            location_mode: DELIVERY or PICKUP (default DELIVERY)
-        """
-        client = get_client()
-        if not client.session.auth_token:
-            await auth_module.create_anonymous_session(client)
-
-        params = [
-            ("lat", latitude),
-            ("lng", longitude),
-            ("prefix", query),
-            ("locationMode", location_mode),
-            ("resultTypeList", "restaurant"),
-            ("resultTypeList", "restaurantPrediction"),
-            ("resultTypeList", "dishTerm"),
-        ]
-        data = await client.get("/autocomplete", params=params)
-        return json.dumps(data, indent=2)

@@ -21,19 +21,6 @@ def register(mcp: FastMCP) -> None:
         return json.dumps({"status": "logged_out"})
 
     @mcp.tool()
-    async def get_session_info() -> str:
-        """Get current authentication state and session info."""
-        client = get_client()
-        return json.dumps(
-            {
-                "is_authenticated": client.session.is_authenticated,
-                "diner_udid": client.session.diner_udid,
-                "has_token": client.session.auth_token is not None,
-            },
-            indent=2,
-        )
-
-    @mcp.tool()
     async def send_login_otp(email: str) -> str:
         """Send a one-time passcode to the given email for login."""
         client = get_client()
@@ -59,10 +46,3 @@ def register(mcp: FastMCP) -> None:
             },
             indent=2,
         )
-
-    @mcp.tool()
-    async def send_password_reset(email: str) -> str:
-        """Send a password reset OTP to the given email."""
-        client = get_client()
-        await auth_module.send_password_reset_otp(client, email)
-        return json.dumps({"status": "reset_otp_sent", "email": email})

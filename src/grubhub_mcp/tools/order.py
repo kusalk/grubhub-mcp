@@ -234,21 +234,3 @@ def register(mcp: FastMCP) -> None:
             payload = _build_cart_payload_from_order(match)
             data = await client.post("/carts", data=payload)
         return json.dumps(data, indent=2)
-
-    @mcp.tool()
-    async def post_delivery_tip(order_id: str, tip_amount: float) -> str:
-        """Add or update the tip after delivery.
-
-        Args:
-            order_id: The order ID
-            tip_amount: Tip amount in dollars
-        """
-        client = get_client()
-        auth_error = _require_authenticated(client, "add a post-delivery tip")
-        if auth_error:
-            return auth_error
-        data = await client.post(
-            f"/orders/{path_id(order_id)}/tip",
-            data={"tip_amount": int(tip_amount * 100)},
-        )
-        return json.dumps(data, indent=2)

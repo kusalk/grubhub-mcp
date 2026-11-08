@@ -139,14 +139,3 @@ async def get_account_details(client: GrubhubClient) -> dict[str, Any]:
         return {"error": "Not authenticated"}
     return await client.get(f"/credentials/{client.session.diner_udid}")
 
-
-async def send_password_reset_otp(client: GrubhubClient, email: str) -> dict[str, Any]:
-    """Send OTP for password reset."""
-    payload = {
-        "brand": "GRUBHUB",
-        "client_id": API_KEY,
-        "email": email,
-    }
-    return await client.post(
-        "/forgot_password/confirmation_code", data=payload, auth_required=False
-    )

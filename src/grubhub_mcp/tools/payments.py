@@ -7,7 +7,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from ..client import get_client, path_id
+from ..client import get_client
 
 
 def register(mcp: FastMCP) -> None:
@@ -20,36 +20,5 @@ def register(mcp: FastMCP) -> None:
 
         data = await client.get(
             f"/payments/{client.session.diner_udid}/payments"
-        )
-        return json.dumps(data, indent=2)
-
-    @mcp.tool()
-    async def get_gift_card_balance(card_number: str, pin: str) -> str:
-        """Check the balance of a Grubhub gift card.
-
-        Args:
-            card_number: Gift card number
-            pin: Gift card PIN
-        """
-        client = get_client()
-        data = await client.post(
-            "/gift_cards/balance",
-            data={"card_number": card_number, "pin": pin},
-        )
-        return json.dumps(data, indent=2)
-
-    @mcp.tool()
-    async def apply_gift_card(cart_id: str, card_number: str, pin: str) -> str:
-        """Apply a gift card to a cart.
-
-        Args:
-            cart_id: The cart ID
-            card_number: Gift card number
-            pin: Gift card PIN
-        """
-        client = get_client()
-        data = await client.post(
-            f"/carts/{path_id(cart_id)}/payments/gift_card",
-            data={"card_number": card_number, "pin": pin},
         )
         return json.dumps(data, indent=2)

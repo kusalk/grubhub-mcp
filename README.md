@@ -4,24 +4,24 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 
 ## Features
 
-- **Search & Discovery** — Find restaurants by location, cuisine, or keyword with autocomplete
+- **Search & Discovery** — Find restaurants by location, cuisine, or keyword
 - **Restaurant & Menus** — View restaurant details, full menus, item options and pricing
 - **Cart Management** — Create carts, add/remove items, apply promo codes, set tips
 - **Order Flow** — Place orders, track deliveries in real-time, reorder past meals
 - **Account Management** — Manage profile, saved addresses, and favorites
-- **Payments** — View saved payment methods, check gift card balances
+- **Payments** — View saved payment methods
 
-### All 33 Tools
+### All 27 Tools
 
 | Category | Tools |
 |----------|-------|
-| **Auth** | `logout`, `get_session_info`, `send_login_otp`, `verify_login_otp`, `send_password_reset` |
-| **Search** | `search_restaurants`, `autocomplete_search` |
+| **Auth** | `logout`, `send_login_otp`, `verify_login_otp` |
+| **Search** | `search_restaurants` |
 | **Restaurant** | `get_restaurant`, `get_menu`, `get_menu_item` |
 | **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `apply_promo_code`, `set_tip` |
-| **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder`, `post_delivery_tip` |
+| **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder` |
 | **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
-| **Payments** | `get_payment_methods`, `get_gift_card_balance`, `apply_gift_card` |
+| **Payments** | `get_payment_methods` |
 
 ## Installation
 
@@ -117,13 +117,13 @@ src/grubhub_mcp/
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
 └── tools/
-    ├── auth.py        # Auth tools (OTP login, logout, password reset)
-    ├── search.py      # Restaurant search and autocomplete
+    ├── auth.py        # Auth tools (OTP login, logout)
+    ├── search.py      # Restaurant search
     ├── restaurant.py  # Restaurant details, menus, menu items
     ├── cart.py        # Cart CRUD, promo codes, tips
     ├── order.py       # Place orders, track, reorder, order history
     ├── account.py     # Profile, addresses, favorites
-    └── payments.py    # Payment methods, gift cards
+    └── payments.py    # Payment methods
 ```
 
 ## Development
