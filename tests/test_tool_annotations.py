@@ -29,7 +29,7 @@ class ToolAnnotationTests(unittest.TestCase):
     def test_reads_are_read_only_and_writes_are_not(self):
         for name, settings in registered_tools().items():
             with self.subTest(tool=name):
-                reads = name.startswith(("get_", "search_")) or name in {"track_order"}
+                reads = name.startswith(("get_", "search_"))
                 self.assertIs(settings["annotations"].readOnlyHint, reads)
 
     def test_place_order_is_destructive_and_says_it_charges(self):

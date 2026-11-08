@@ -7,12 +7,12 @@ from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-from .. import carts
+from .. import carts, tracking
 from ..client import get_client, path_id
 from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
 from ..response import dollars, respond
 from ..summaries import cart_summary, order_confirmation
-from .cart import CART_EXCLUDE, to_cents
+from .cart import CART_EXCLUDE, cart_view, to_cents
 
 
 async def _fetch_order_history_raw(
@@ -59,59 +59,34 @@ async def _find_order_in_history(client: Any, order_id: str) -> dict[str, Any] |
     while page <= total_pages:
         history = await _fetch_order_history_raw(client, page_size=20, page_num=page)
         for order in history.get("orders", []):
-            if order.get("id") == order_id or order.get("group_id") == order_id:
+            if order_id in (order.get("id"), order.get("group_id"), str(order.get("order_number"))):
                 return order
         total_pages = (history.get("pager") or {}).get("total_pages") or 1
         page += 1
     return None
 
 
-def _build_cart_payload_from_order(order: dict[str, Any]) -> dict[str, Any]:
+def reorder_lines(order: dict[str, Any]) -> tuple[str, list[dict[str, Any]]]:
+    """The restaurant and cart lines to rebuild a past order."""
     restaurants = order.get("restaurants") or []
-    if not restaurants:
-        raise ValueError("Order does not include restaurant metadata")
+    if not restaurants or not isinstance(restaurants[0], dict) or not restaurants[0].get("id"):
+        raise ValueError("The order doesn't say which restaurant it came from")
+    restaurant_id = str(restaurants[0]["id"])
+    lines = []
+    for item in carts.line_items(order):
+        if item.get("menu_item_id"):
+            lines.append(carts.line_body(
+                restaurant_id, str(item["menu_item_id"]), item.get("quantity") or 1,
+                carts.line_options(item.get("options")), item.get("special_instructions") or "",
+            ))
+    if not lines:
+        raise ValueError("The order has no items to reorder")
+    return restaurant_id, lines
 
-    charges = order.get("charges") or {}
-    line_items = (charges.get("lines") or {}).get("line_items") or []
-    if not line_items:
-        raise ValueError("Order does not include reorderable line items")
 
-    payload_line_items: list[dict[str, Any]] = []
-    for item in line_items:
-        menu_item_id = item.get("menu_item_id") or item.get("id")
-        if not menu_item_id:
-            raise ValueError("Order line item is missing menu_item_id")
-        payload_item: dict[str, Any] = {
-            "menu_item_id": str(menu_item_id),
-            "quantity": item.get("quantity", 1),
-        }
-        if item.get("special_instructions"):
-            payload_item["special_instructions"] = item["special_instructions"]
-        if item.get("options"):
-            payload_item["options"] = item["options"]
-        payload_line_items.append(payload_item)
-
-    fulfillment_info = order.get("fulfillment_info") or {}
-    order_type = fulfillment_info.get("type", "DELIVERY")
-    payload: dict[str, Any] = {
-        "brand": "GRUBHUB",
-        "restaurant_id": str(restaurants[0]["id"]),
-        "line_items": payload_line_items,
-        "order_type": order_type,
-    }
-
-    delivery_info = fulfillment_info.get("delivery_info") or {}
-    address = delivery_info.get("address") or {}
-    coordinates = address.get("coordinates") or {}
-    latitude = coordinates.get("latitude")
-    longitude = coordinates.get("longitude")
-    if latitude is not None and longitude is not None:
-        payload["location"] = {
-            "latitude": latitude,
-            "longitude": longitude,
-        }
-
-    return payload
+def history_status(order: dict[str, Any]) -> dict[str, Any]:
+    """Status from the order-history entry, used when the live feed is unavailable."""
+    return {"state": order.get("order_status"), "expected_by": order.get("when_for")}
 
 
 def register(mcp: FastMCP) -> None:
@@ -161,26 +136,25 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_order(order_id: str) -> str:
-        """Get details for a specific order.
+        """Get an order and its live delivery status.
+
+        The response starts with tracking: the status (e.g. "Out for delivery",
+        "Delivered"), the arrival window, whether it's on time, the delivery code
+        the courier may ask for, and the courier's name, phone and location. If
+        live tracking is unavailable, tracking holds the order-history status.
 
         Args:
-            order_id: The order ID
+            order_id: The order number, or the order's id or group_id from get_order_history
         """
         client = get_client()
         auth_error = _require_authenticated(client, "view order details")
         if auth_error:
             return auth_error
-        try:
-            data = await client.get(f"/orders/{path_id(order_id)}")
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code != 404:
-                raise
-
-            match = await _find_order_in_history(client, order_id)
-            if match is None:
-                raise
-            data = match
-        return respond(data)
+        order = await _find_order_in_history(client, order_id.strip())
+        if order is None:
+            return respond({"error": f"No order {order_id!r} in your order history."})
+        tracking_status = await tracking.live_status(client, order.get("id")) or history_status(order)
+        return respond({"tracking": tracking_status, **order}, exclude=CART_EXCLUDE)
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_order_history(page_size: int = 20, page_num: int = 1) -> str:
@@ -217,41 +191,38 @@ def register(mcp: FastMCP) -> None:
             too_large_hint="Use a smaller page_size.",
         )
 
-    @mcp.tool(structured_output=False, annotations=READ_ONLY)
-    async def track_order(order_id: str) -> str:
-        """Get real-time tracking info for an active order.
-
-        Args:
-            order_id: The order ID to track
-        """
-        client = get_client()
-        auth_error = _require_authenticated(client, "track an order")
-        if auth_error:
-            return auth_error
-        data = await client.get(f"/orders/{path_id(order_id)}/tracking")
-        return respond(data)
-
     @mcp.tool(structured_output=False, annotations=ADDITIVE)
-    async def reorder(order_id: str) -> str:
-        """Create a new cart from a previous order for easy reordering.
+    async def reorder(order_id: str, address_id: str | None = None, include_utensils: bool = True) -> str:
+        """Start a new cart with a past order's items, and return the cart.
+
+        Items the restaurant no longer offers are skipped and listed under
+        skipped_items. The cart is delivered like create_cart's.
 
         Args:
-            order_id: The order ID to reorder
+            order_id: The order number, or the order's id or group_id from get_order_history
+            address_id: A saved address id from get_addresses (default: Home)
+            include_utensils: Ask for napkins and utensils (default true)
         """
         client = get_client()
         auth_error = _require_authenticated(client, "reorder")
         if auth_error:
             return auth_error
-
+        order = await _find_order_in_history(client, order_id.strip())
+        if order is None:
+            return respond({"error": f"No order {order_id!r} in your order history."})
+        _, lines = reorder_lines(order)
+        cart_id = await carts.create(client)
         try:
-            data = await client.post(f"/orders/{path_id(order_id)}/reorder")
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code != 404:
-                raise
-
-            match = await _find_order_in_history(client, order_id)
-            if match is None:
-                raise
-            payload = _build_cart_payload_from_order(match)
-            data = await client.post("/carts", data=payload)
-        return respond(data)
+            await carts.set_delivery(client, cart_id, address_id, include_utensils)
+        except Exception as exc:
+            raise ValueError(f"Created cart {cart_id}, but setting its delivery address failed: {exc}") from exc
+        skipped = []
+        for line in lines:
+            try:
+                await carts.add_line(client, cart_id, line)
+            except httpx.HTTPStatusError as exc:
+                skipped.append({"menu_item_id": line["menu_item_id"], "reason": str(exc)})
+        if len(skipped) == len(lines):
+            return respond({"error": f"None of the order's items could be added to cart {cart_id}.", "skipped_items": skipped})
+        bill = await carts.apply_benefits(client, cart_id)
+        return cart_view({"skipped_items": skipped, **bill} if skipped else bill)

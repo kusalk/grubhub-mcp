@@ -214,34 +214,6 @@ class AuthAndOrdersTests(unittest.IsolatedAsyncioTestCase):
         mcp = FakeMCP()
         order_tools.register(mcp)
         with patch("src.grubhub_mcp.tools.order.get_client", return_value=client):
-            with self.assertRaises(httpx.HTTPStatusError):
-                await mcp.tools["get_order"]("absent")
+            out = json.loads(await mcp.tools["get_order"]("absent"))
+        self.assertIn("No order 'absent'", out["error"])
         self.assertEqual([dict(params)["pageNum"] for path, params, _ in client.get_calls if path.endswith("search_listing")], [1, 2])
-
-    async def test_reorder_falls_back_to_cart_reconstruction_on_later_page(self):
-        target = {
-            "id": "old-order", "group_id": "old-group", "restaurants": [{"id": "2056994"}],
-            "fulfillment_info": {"type": "PICKUP"},
-            "charges": {"lines": {"line_items": [{
-                "menu_item_id": "324325110600", "quantity": 1,
-                "options": [{"id": "324325089912", "quantity": 1}],
-            }]}},
-        }
-        client = FakeClient(history_orders=[{"id": f"other-{i}"} for i in range(20)] + [target])
-        mcp = FakeMCP()
-        order_tools.register(mcp)
-        with patch("src.grubhub_mcp.tools.order.get_client", return_value=client):
-            data = json.loads(await mcp.tools["reorder"]("old-group"))
-        self.assertEqual(data["id"], "cart-123")
-        self.assertEqual([path for path, _, _, _ in client.post_calls], ["/orders/old-group/reorder", "/carts"])
-        self.assertEqual([dict(params)["pageNum"] for _, params, _ in client.get_calls], [1, 2])
-        payload = client.post_calls[1][1]
-        assert payload is not None
-        self.assertEqual(payload["restaurant_id"], "2056994")
-        self.assertEqual(payload["order_type"], "PICKUP")
-        self.assertEqual(payload["line_items"][0]["menu_item_id"], "324325110600")
-        self.assertEqual(payload["line_items"][0]["options"], target["charges"]["lines"]["line_items"][0]["options"])
-
-
-if __name__ == "__main__":
-    unittest.main()

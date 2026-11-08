@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 - **Account Management** — Manage profile, saved addresses, and favorites
 - **Payments** — View saved payment methods, apply Grubhub+ credits, redeem gift cards
 
-### All 30 Tools
+### All 29 Tools
 
 | Category | Tools |
 |----------|-------|
@@ -19,7 +19,7 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 | **Search** | `search_restaurants` |
 | **Restaurant** | `get_restaurant`, `get_menu_item` |
 | **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `delete_cart`, `apply_promo_code`, `set_tip` |
-| **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder` |
+| **Order** | `place_order`, `get_order`, `get_order_history`, `reorder` |
 | **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
 | **Payments** | `get_payment_methods`, `get_grubhub_credits`, `apply_grubhub_credit`, `redeem_gift_card` |
 
@@ -107,8 +107,8 @@ Tools return compact JSON shaped for language models:
 `get_order_history` uses server-side pagination so older orders are reachable.
 `page_num` is **1-based** (default `1`), and `page_size` defaults to `20`.
 Iterate from `1` through `pagination.total_pages` to retrieve the full history.
-Both values must be positive. Order-detail and reorder fallbacks search across
-all available history pages.
+Both values must be positive. `get_order` and `reorder` search across all
+available history pages.
 
 **Migration from v1.1.6:** callers using the old 0-based `page_num` must add one
 to their page index. The response now provides `total_pages` and `current_page`
@@ -121,7 +121,7 @@ The API endpoints were reverse-engineered from the Grubhub Android app (v2026.11
 Key technical details:
 - **Base API**: `https://api-gtm.grubhub.com`
 - **Auth**: Bearer token via one-time passcode or anonymous sessions
-- **Transport**: REST/JSON for most endpoints, Protobuf for some BFF services
+- **Transport**: REST/JSON, plus the website's protobuf order-tracking feed
 - **Headers**: Mimics the Android app's request headers including `x-gh-browser-id`
 
 ## Project Structure
@@ -134,6 +134,7 @@ src/grubhub_mcp/
 ├── client.py          # HTTP client with auth and header management
 ├── auth.py            # Authentication flows (login, anonymous, OTP, refresh)
 ├── carts.py           # Cart building: delivery, items, offers and payments
+├── tracking.py        # Live order status from the order-tracking feed
 ├── response.py        # Compact, size-limited tool output
 ├── summaries.py       # Plain-language restaurant, cart and order summaries
 └── tools/

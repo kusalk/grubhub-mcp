@@ -297,10 +297,11 @@ class GrubhubClient:
                 logger.warning("Token refresh failed; retaining the existing session")
                 return False
 
-    async def _request(
-        self, method: str, path: str, *, data: dict[str, Any] | None = None,
-        params: Any = None, auth_required: bool = True,
-    ) -> dict[str, Any]:
+    async def _send(
+        self, method: str, path: str, *, auth_required: bool = True,
+        headers: dict[str, str] | None = None, **request: Any,
+    ) -> httpx.Response:
+        """Send with refresh-on-use and one retry after a 401; raise on error statuses."""
         identity = (self.session.is_authenticated, self.session.diner_udid, self.session.login_generation)
         refresh_attempted = False
         if auth_required and self.session.refresh_token and self.session.access_token_expiring():
@@ -308,16 +309,29 @@ class GrubhubClient:
             await self._refresh_token(self.session.auth_token, identity)
         token = self.session.auth_token
         resp = await self._http.request(
-            method, path, headers=self._headers(auth_required), json=data, params=params,
+            method, path, headers={**self._headers(auth_required), **(headers or {})}, **request,
         )
         if resp.status_code == 401 and auth_required and self.session.refresh_token and not refresh_attempted:
             if await self._refresh_token(token, identity):
                 resp = await self._http.request(
-                    method, path, headers=self._headers(auth_required), json=data, params=params,
+                    method, path, headers={**self._headers(auth_required), **(headers or {})}, **request,
                 )
         if resp.is_error:
             raise GrubhubAPIError(resp)
+        return resp
+
+    async def _request(
+        self, method: str, path: str, *, data: dict[str, Any] | None = None,
+        params: Any = None, auth_required: bool = True,
+    ) -> dict[str, Any]:
+        resp = await self._send(method, path, auth_required=auth_required, json=data, params=params)
         return resp.json() if resp.content else {}
+
+    async def post_protobuf(self, path: str, body: bytes) -> bytes:
+        """POST a protobuf message, as the website's order-tracking page does."""
+        protobuf = "application/octet-stream"
+        resp = await self._send("POST", path, headers={"Content-Type": protobuf, "Accept": protobuf}, content=body)
+        return resp.content
 
     async def get(self, path: str, params: Any = None, auth_required: bool = True) -> dict[str, Any]:
         return await self._request("GET", path, params=params, auth_required=auth_required)
