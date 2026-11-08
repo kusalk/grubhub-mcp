@@ -11,6 +11,7 @@ from .. import carts
 from ..client import get_client, path_id
 from . import ADDITIVE, DESTRUCTIVE, READ_ONLY
 from ..response import respond
+from ..summaries import cart_summary
 
 # Bookkeeping in cart and bill responses that doesn't affect the order.
 CART_EXCLUDE = frozenset({
@@ -26,6 +27,7 @@ CART_EXCLUDE = frozenset({
     "checkout_token",
     "diner_id",
     "experiments",
+    "fee_items",  # Itemized in the summary; the raw fees totals remain.
     "group_admin",
     "group_payment_mode",
     "group_type",
@@ -37,6 +39,7 @@ CART_EXCLUDE = frozenset({
     "packaging_options",
     "payment_selection_list",
     "pnp_substitution_rule",
+    "promotion_infos",  # Reported as zero_fee_progress in the summary.
     "silo_id",
     "update_metadata",
 })
@@ -54,6 +57,9 @@ def option_payload(options: list[CartOption] | None) -> list[dict[str, Any]]:
 
 
 def cart_view(bill: Any) -> str:
+    """The cart's bill, led by a plain-language summary."""
+    if isinstance(bill, dict):
+        bill = {"summary": cart_summary(bill), **bill}
     return respond(bill, exclude=CART_EXCLUDE)
 
 
@@ -105,14 +111,18 @@ def register(mcp: FastMCP) -> None:
 
     @mcp.tool(structured_output=False, annotations=READ_ONLY)
     async def get_cart(cart_id: str) -> str:
-        """Get the current state of a cart including items, totals, and fees.
+        """Get a cart and its bill.
+
+        The response starts with a summary: whether it's ready to order, any
+        problems, items (with their line_item_id), subtotal, fees, tax, tip,
+        total, discounts and credits, card_charge (what place_order will charge
+        the card), progress toward $0 fees, and the delivery address.
 
         Args:
             cart_id: The cart ID
         """
         client = get_client()
-        data = await client.get(f"/carts/{path_id(cart_id)}")
-        return respond(data)
+        return cart_view(await carts.get_bill(client, cart_id))
 
     @mcp.tool(structured_output=False, annotations=ADDITIVE)
     async def add_to_cart(

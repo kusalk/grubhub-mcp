@@ -8,6 +8,7 @@ from unittest.mock import patch
 import httpx
 
 from src.grubhub_mcp import carts
+from src.grubhub_mcp.summaries import cart_summary
 from src.grubhub_mcp.tools import cart as cart_tools
 
 CART = "cart1"
@@ -187,6 +188,85 @@ class RankedOfferTests(unittest.TestCase):
         for offers in (None, "x", {"available_offers": "x"}):
             with self.subTest(offers=offers):
                 self.assertEqual(carts.ranked_offers(offers, 6000), [])
+
+
+# Charges and payments from a real checkout, with personal details replaced.
+REAL_ORDER_BILL = {
+    "state": "READY_FOR_CHECKOUT", "validation_errors": [],
+    "charges": {
+        "lines": {"line_items": [{
+            "id": "line-1", "name": "Supreme Pizza", "quantity": 1, "diner_total": 3050, "special_instructions": "",
+            "options": [{"id": "o1", "name": "Extra Large 18\"", "price": 3050, "quantity": 1, "child_options": []}],
+        }]},
+        "diner_subtotal": 3050,
+        "fees": {
+            "total": 395, "delivery": 0, "service": 395,
+            "fee_items": [
+                {"calculated_amount": 0, "non_adjusted_amount": 0, "type": "DELIVERY", "name": "Delivery fee"},
+                {"calculated_amount": 195, "non_adjusted_amount": 390, "type": "CHAIN_SERVICE_FEE", "name": "Service fee"},
+                {"calculated_amount": 200, "non_adjusted_amount": 200, "type": "SERVICE_TOLL", "name": "Other fees"},
+            ],
+            "promotion_infos": [{"type": "SPEND_BASED_DISCOUNT", "min_subtotal_threshold": 5000, "percentage_achieved": 61}],
+        },
+        "taxes": {"total": 252}, "tip": {"amount": 300, "type": "INCLUDE_IN_BILL"}, "diner_grand_total": 3997,
+    },
+    "payments": {
+        "PROMO_CODE": [{"payment_id": "diner", "amount": 0}],
+        "UNIFIED_REWARD": [{"payment_id": "offer", "amount": 610}],
+        "CREDIT_CARD": [{"payment_id": "card", "amount": 2387}],
+        "GRUBCASH": [{"payment_id": "credit", "amount": 1000}],
+    },
+    "savings_breakdown": {"total_savings": 1805},
+    "fulfillment_info": {"delivery_info": {
+        "address": {"address_lines": ["1 Main St", "4"]}, "delivery_instructions": "Leave at door", "green_indicated": True,
+    }},
+}
+
+
+class CartSummaryTests(unittest.TestCase):
+    def test_summary_matches_what_grubhub_charged(self):
+        self.assertEqual(cart_summary(REAL_ORDER_BILL), {
+            "ready_to_order": True,
+            "problems": [],
+            "items": [{"line_item_id": "line-1", "name": "Supreme Pizza", "quantity": 1,
+                       "options": ["Extra Large 18\""], "price": "$30.50", "notes": ""}],
+            "subtotal": "$30.50",
+            "fees": {"Delivery fee": "$0.00", "Service fee": "$1.95 (normally $3.90)", "Other fees": "$2.00"},
+            "tax": "$2.52",
+            "tip": "$3.00",
+            "total": "$39.97",
+            "discounts": ["Restaurant offer: -$6.10", "Grubhub credit: -$10.00"],
+            "card_charge": "$23.87",  # The card was charged exactly this.
+            "savings": "$18.05",
+            "zero_fee_progress": "$19.50 more for $0 fees",
+            "deliver_to": "1 Main St, 4",
+            "delivery_instructions": "Leave at door",
+            "utensils": False,
+        })
+
+    def test_problems_in_plain_language(self):
+        bill = {"validation_errors": [{"property": "payments", "message_key": "invalid-amountnotmet"},
+                                      {"property": "fulfillment_info", "message_key": "invalid-fulfillmentinforequired"},
+                                      {"property": "new_check", "message_key": "invalid-something"}]}
+        self.assertEqual(cart_summary(bill)["problems"], [
+            "No card on the cart yet; place_order adds it.", "No delivery address.", "new_check:invalid-something",
+        ])
+
+    def test_unreadable_bill_yields_empty_summary(self):
+        self.assertEqual(cart_summary({"charges": "unexpected"}), {})
+        partial = cart_summary({"charges": {"fees": {"promotion_infos": ["x"], "fee_items": [1]}}})
+        self.assertEqual((partial["fees"], partial["zero_fee_progress"]), ({}, None))
+
+
+class GetCartTests(unittest.IsolatedAsyncioTestCase):
+    async def test_get_cart_reads_the_bill_and_leads_with_summary(self):
+        client = FakeCartClient()
+        tools: dict = {}
+        cart_tools.register(SimpleNamespace(tool=lambda **_: lambda fn: tools.setdefault(fn.__name__, fn)))
+        with patch("src.grubhub_mcp.tools.cart.get_client", return_value=client):
+            out = json.loads(await tools["get_cart"](cart_id=CART))
+        self.assertEqual(list(out)[0], "summary")
+        self.assertEqual([path for _, path, _ in client.calls], [f"/carts/{CART}/bill"])
 
 
 class DeleteCartTests(unittest.IsolatedAsyncioTestCase):

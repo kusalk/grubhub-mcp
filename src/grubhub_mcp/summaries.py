@@ -83,6 +83,106 @@ def restaurant_summary(data: dict[str, Any], offers: Any = None) -> dict[str, An
         return {}
 
 
+_PAYMENT_LABELS = {
+    "GIFT_CARD": "Gift card",
+    "GRUBCASH": "Grubhub credit",
+    "PROMO_CODE": "Promo code",
+    "UNIFIED_REWARD": "Restaurant offer",
+}
+
+_PROBLEMS = {
+    "fulfillment_info:invalid-fulfillmentinforequired": "No delivery address.",
+    "lines:invalid-required": "The cart has no items.",
+    "payments:invalid-amountnotmet": "No card on the cart yet; place_order adds it.",
+    "payments:invalid-required": "No card on the cart yet; place_order adds it.",
+}
+
+
+def cart_summary(bill: dict[str, Any]) -> dict[str, Any]:
+    """Summarize a /carts/{id}/bill response.
+
+    card_charge is the total minus discounts and credits: what place_order
+    charges the card.
+    """
+    try:
+        charges = bill.get("charges") or {}
+        fees = charges.get("fees") or {}
+        subtotal, total = charges.get("diner_subtotal"), charges.get("diner_grand_total")
+        discounts, discount_cents = [], 0
+        for kind, payments in (bill.get("payments") or {}).items():
+            amount = sum(p.get("amount") for p in payments if isinstance(p, dict) and type(p.get("amount")) is int)
+            if kind != "CREDIT_CARD" and amount:
+                discounts.append(f"{_PAYMENT_LABELS.get(kind, kind)}: -{dollars(amount)}")
+                discount_cents += amount
+        delivery = (bill.get("fulfillment_info") or {}).get("delivery_info") or {}
+        address_lines = (delivery.get("address") or {}).get("address_lines")
+        return {
+            "ready_to_order": bill.get("state") == "READY_FOR_CHECKOUT",
+            "problems": [_problem(e) for e in bill.get("validation_errors") or [] if isinstance(e, dict)],
+            "items": [_cart_item(line) for line in ((charges.get("lines") or {}).get("line_items") or []) if isinstance(line, dict)],
+            "subtotal": _money(subtotal),
+            "fees": _cart_fees(fees.get("fee_items")),
+            "tax": _money((charges.get("taxes") or {}).get("total")),
+            "tip": _money((charges.get("tip") or {}).get("amount")),
+            "total": _money(total),
+            "discounts": discounts,
+            "card_charge": dollars(total - discount_cents) if type(total) is int else None,
+            "savings": _positive_dollars((bill.get("savings_breakdown") or {}).get("total_savings")),
+            "zero_fee_progress": _zero_fee_progress(fees.get("promotion_infos"), subtotal),
+            "deliver_to": ", ".join(address_lines) if isinstance(address_lines, list) else None,
+            "delivery_instructions": delivery.get("delivery_instructions"),
+            "utensils": None if "green_indicated" not in delivery else not delivery["green_indicated"],
+        }
+    except Exception:  # A summary must never break the tool; the raw data is still returned.
+        return {}
+
+
+def _problem(error: dict[str, Any]) -> str:
+    key = f"{error.get('property')}:{error.get('message_key')}"
+    return _PROBLEMS.get(key, key)
+
+
+def _cart_item(line: dict[str, Any]) -> dict[str, Any]:
+    options = [o.get("name") for o in line.get("options") or [] if isinstance(o, dict) and o.get("name")]
+    return {
+        "line_item_id": line.get("id"),
+        "name": line.get("name"),
+        "quantity": line.get("quantity"),
+        "options": options,
+        "price": _money(line.get("diner_total")),
+        "notes": line.get("special_instructions"),
+    }
+
+
+def _cart_fees(items: Any) -> dict[str, str]:
+    fees = {}
+    for item in items if isinstance(items, list) else []:
+        if not isinstance(item, dict) or type(item.get("calculated_amount")) is not int:
+            continue
+        charged, normally = item["calculated_amount"], item.get("non_adjusted_amount")
+        text = dollars(charged)
+        if type(normally) is int and normally > charged:
+            text += f" (normally {dollars(normally)})"
+        fees[str(item.get("name") or item.get("type"))] = text
+    return fees
+
+
+def _zero_fee_progress(promotions: Any, subtotal: Any) -> str | None:
+    for promotion in promotions if isinstance(promotions, list) else []:
+        if not isinstance(promotion, dict):
+            continue
+        threshold = promotion.get("min_subtotal_threshold")
+        if promotion.get("type") == "SPEND_BASED_DISCOUNT" and type(threshold) is int and type(subtotal) is int:
+            if subtotal >= threshold:
+                return "$0 fees on this order"
+            return f"{dollars(threshold - subtotal)} more for $0 fees"
+    return None
+
+
+def _money(cents: Any) -> str | None:
+    return dollars(cents) if type(cents) is int else None
+
+
 def _titled_lines(offers: Any, key: str, time_zone: Any) -> list[str]:
     """One line per entry from Grubhub's own title and description, plus its end date."""
     if not isinstance(offers, dict) or not isinstance(offers.get(key), list):
