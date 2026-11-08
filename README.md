@@ -9,9 +9,9 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 - **Cart Management** — Create carts, add/remove items, apply promo codes, set tips
 - **Order Flow** — Place orders, track deliveries in real-time, reorder past meals
 - **Account Management** — Manage profile, saved addresses, and favorites
-- **Payments** — View saved payment methods
+- **Payments** — View saved payment methods, apply Grubhub+ credits, redeem gift cards
 
-### All 27 Tools
+### All 30 Tools
 
 | Category | Tools |
 |----------|-------|
@@ -21,7 +21,7 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 | **Cart** | `create_cart`, `get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`, `delete_cart`, `apply_promo_code`, `set_tip` |
 | **Order** | `place_order`, `get_order`, `get_order_history`, `track_order`, `reorder` |
 | **Account** | `get_profile`, `update_profile`, `get_addresses`, `add_address`, `get_favorites`, `add_favorite`, `remove_favorite` |
-| **Payments** | `get_payment_methods` |
+| **Payments** | `get_payment_methods`, `get_grubhub_credits`, `apply_grubhub_credit`, `redeem_gift_card` |
 
 ## Installation
 
@@ -143,7 +143,7 @@ src/grubhub_mcp/
     ├── cart.py        # Cart tools, promo codes, tips
     ├── order.py       # Place orders, track, reorder, order history
     ├── account.py     # Profile, addresses, favorites
-    └── payments.py    # Payment methods
+    └── payments.py    # Payment methods, Grubhub+ credits, gift cards
 ```
 
 ## Development
