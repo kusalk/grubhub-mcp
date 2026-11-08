@@ -6,8 +6,8 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 
 - **Search & Discovery** — Find restaurants by location, cuisine, or keyword
 - **Restaurant & Menus** — View restaurant details, fees, full menus, item options, pricing and offers
-- **Cart Management** — Create carts, add/remove items, apply promo codes, set tips
-- **Order Flow** — Place orders, track deliveries in real-time, reorder past meals
+- **Cart Management** — Build delivery carts with Grubhub+ and restaurant offers applied automatically, apply promo codes and credits, set tips
+- **Order Flow** — Place orders behind a confirmed-charge check, track deliveries live (status, arrival window, delivery code, courier), reorder past meals
 - **Account Management** — Manage profile, saved addresses, and favorites
 - **Payments** — View saved payment methods, apply Grubhub+ credits, redeem gift cards
 
@@ -85,6 +85,27 @@ may change.
 There is no background keep-alive: a revoked or expired refresh token still
 requires a new login. Do not share your session file; it contains credentials.
 
+## Ordering
+
+Carts are delivery-only.
+
+1. `search_restaurants`, then `get_restaurant` for fees, offers and the menu, and
+   `get_menu_item` for an item's sizes and add-ons.
+2. `create_cart` delivers to a saved address (Home unless `address_id` is given)
+   with its delivery instructions, and includes utensils unless `include_utensils`
+   is false. After every cart change, Grubhub+ and the largest restaurant offer the
+   cart qualifies for are applied.
+3. `get_cart` shows the bill, led by a summary: items, fees, tax, tip, discounts
+   and credits, `card_charge`, and any problems. Set the tip with `set_tip`
+   ($0–$100), and apply credits with `apply_grubhub_credit` or codes with
+   `apply_promo_code`.
+4. `place_order` takes the `card_charge` the user confirmed as `expected_charge`.
+   It puts a card on the cart (the most recently used unless `payment_method_id`
+   is given) and checks out only if Grubhub reports the cart ready and the charge
+   matches to the cent; otherwise nothing is charged.
+5. `get_order` shows the live status: arrival window, on-time state, delivery code
+   and courier.
+
 ## Tool Output
 
 Tools return compact JSON shaped for language models:
@@ -96,6 +117,8 @@ Tools return compact JSON shaped for language models:
   `summary`: Grubhub+ eligibility, hours, delivery estimate, every fee and
   promotions, with the raw fields behind it still included. `get_restaurant`'s
   summary also lists the restaurant's offers.
+- Cart tools return the bill led by a summary, and `get_order` leads with live
+  tracking.
 - `get_restaurant` returns the menu without option groups; `get_menu_item` has an
   item's sizes and add-ons. `menu_query` keeps only matching menu items.
 - Output is limited to 80,000 characters. A larger menu drops item descriptions,
@@ -116,7 +139,7 @@ instead of the legacy `total_orders` value, which only counted a capped subset.
 
 ## How It Works
 
-The API endpoints were reverse-engineered from the Grubhub Android app (v2026.11.1) by decompiling the APK with jadx and analyzing the Retrofit service interfaces, OkHttp interceptors, and data models.
+The API endpoints were reverse-engineered from the Grubhub Android app (v2026.11.1) by decompiling the APK with jadx and analyzing the Retrofit service interfaces, OkHttp interceptors, and data models. Cart, checkout and order-tracking requests follow what Grubhub's website sends, checked against the live API.
 
 Key technical details:
 - **Base API**: `https://api-gtm.grubhub.com`

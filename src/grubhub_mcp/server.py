@@ -9,12 +9,18 @@ from .tools import auth, search, restaurant, cart, order, account, payments
 mcp = FastMCP(
     "grubhub",
     instructions=(
-        "Grubhub MCP server. Use these tools to search for restaurants, "
-        "browse menus, manage a shopping cart, place food delivery/pickup "
-        "orders, and manage your Grubhub account. "
-        "Start by searching for restaurants near a location. "
-        "Login is required for placing orders, viewing order history, "
-        "and account management. Search and menu browsing work without login."
+        "Grubhub MCP server for food delivery orders. "
+        "Find food with search_restaurants, then get_restaurant (fees, offers, menu) "
+        "and get_menu_item (sizes and add-ons). Menu prices exclude tax and fees, "
+        "which differ between restaurants, so compare restaurants on total cost. "
+        "create_cart delivers to the user's saved Home address unless told otherwise; "
+        "Grubhub+ and the best offer apply automatically after each cart change. "
+        "Before ordering: show the user get_cart's summary, ask how much to tip "
+        "(set_tip), offer any credits from get_grubhub_credits, and get the user's "
+        "confirmation of card_charge. Then call place_order with that amount as "
+        "expected_charge. Track orders with get_order. "
+        "Login (send_login_otp, then verify_login_otp) is required for carts, "
+        "orders and account tools; search and menus work without login."
     ),
 )
 
