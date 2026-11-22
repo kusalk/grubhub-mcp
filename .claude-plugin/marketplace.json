@@ -1,0 +1,11 @@
+{
+  "name": "kusalk",
+  "owner": { "name": "Kusal Kithul-Godage" },
+  "plugins": [
+    {
+      "name": "grubhub",
+      "source": "./",
+      "description": "Search Grubhub restaurants, build carts and place delivery orders"
+    }
+  ]
+}

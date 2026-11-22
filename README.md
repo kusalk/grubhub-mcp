@@ -25,11 +25,29 @@ An MCP (Model Context Protocol) server that provides programmatic access to Grub
 
 ## Installation
 
-Install from a clone of this repository. The `grubhub-mcp` package on PyPI and
-the upstream Claude Code plugin are published from the original project and
-don't include this fork's changes.
+The `grubhub-mcp` package on PyPI and the upstream Claude Code plugin are
+published from the original project and don't include this fork's changes.
 
-Requires Python 3.11+.
+Both install methods need [uv](https://docs.astral.sh/uv/) and Python 3.11+.
+
+### Plugin (Claude Code and Cowork)
+
+This repository is a plugin marketplace. In Claude Code:
+
+```bash
+claude plugin marketplace add kusalk/grubhub-mcp
+claude plugin install grubhub@kusalk
+```
+
+In the Claude desktop app, open Customize → Plugins → Add → Add marketplace,
+enter `kusalk/grubhub-mcp`, and install `grubhub`. The server runs on your
+computer, so it works in Cowork sessions that run locally but not in claude.ai
+chat. A plugin installed in the desktop app also appears in Claude Code.
+
+The plugin builds the server from its own copy of the repository with `uvx`,
+which must be on the PATH of your login shell.
+
+### From source
 
 ```bash
 git clone https://github.com/kusalk/grubhub-mcp.git

@@ -1,0 +1,13 @@
+{
+  "name": "grubhub",
+  "description": "Search Grubhub restaurants, build carts and place delivery orders",
+  "author": { "name": "Kusal Kithul-Godage" },
+  "repository": "https://github.com/kusalk/grubhub-mcp",
+  "license": "MIT",
+  "mcpServers": {
+    "grubhub": {
+      "command": "uvx",
+      "args": ["--from", "${CLAUDE_PLUGIN_ROOT}", "grubhub"]
+    }
+  }
+}
