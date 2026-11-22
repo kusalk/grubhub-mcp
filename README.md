@@ -30,22 +30,31 @@ published from the original project and don't include this fork's changes.
 
 Both install methods need [uv](https://docs.astral.sh/uv/) and Python 3.11+.
 
-### Plugin (Claude Code and Cowork)
+### Plugin (Claude Code, Cowork and Codex)
 
-This repository is a plugin marketplace. In Claude Code:
+The plugin is listed in the [kusalk/agent-plugins](https://github.com/kusalk/agent-plugins)
+marketplace. In Claude Code:
 
 ```bash
-claude plugin marketplace add kusalk/grubhub-mcp
+claude plugin marketplace add kusalk/agent-plugins
 claude plugin install grubhub@kusalk
 ```
 
 In the Claude desktop app, open Customize → Plugins → Add → Add marketplace,
-enter `kusalk/grubhub-mcp`, and install `grubhub`. The server runs on your
+enter `kusalk/agent-plugins`, and install `grubhub`. The server runs on your
 computer, so it works in Cowork sessions that run locally but not in claude.ai
 chat. A plugin installed in the desktop app also appears in Claude Code.
 
-The plugin builds the server from its own copy of the repository with `uvx`,
-which must be on the PATH of your login shell.
+In Codex:
+
+```bash
+codex plugin marketplace add kusalk/agent-plugins
+codex plugin add grubhub@kusalk
+```
+
+The plugin runs the latest `master` of this repository with
+`uvx --from git+https://github.com/kusalk/grubhub-mcp grubhub`, so `uvx` must be
+on the PATH of your login shell.
 
 ### From source
 
